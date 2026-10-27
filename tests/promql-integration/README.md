@@ -498,4 +498,29 @@ All metadata fixtures read zero sample pages and release provider allocations an
 
 These finite fixture checks establish behavior and reduced enumeration, not a production latency guarantee.
 Full-label discovery remains cardinality-dependent, and exact-name prefilters still visit dimensions in rejected
-contexts. The separate `/api/v1/metadata` help/type endpoint remains unsupported.
+contexts. The separate `/api/v1/metadata` endpoint is described below.
+
+## Context-owned metric descriptions
+
+Decision 72.A adds GET `/api/v1/metadata` over existing contexts references. Unlike series discovery, this is a
+catalogue of descriptions and does not require retained samples. It includes archived metadata, omits deleted entries,
+and reports each instance's title, unchanged units and incremental-counter/other-gauge type. Exact names and aliases
+share the same mapping; distinct tuples across instances/hosts remain visible. No chart-label SQL or DBengine cursor
+is used. The [API reference](../../src/web/api/promql/README.md#metric-descriptions) specifies filters and limit semantics.
+
+The native fixtures cover direct/routed responses, parameter boundaries, duplicate tuples and mixed types, archived
+label-load avoidance, no-sample entries, deleted objects, immutable string references and cancellation after the first row. Internal sort cases cover
+long common prefixes across backing windows, duplicates, known ascending/reverse permutations, cancellation at
+initialization/comparison/emission and a failed backing read. HTTP fixtures cover fleet/host scopes, differing instance
+descriptions, alias collisions and large normalized descriptions with gzip. Existing query and discovery checks remain.
+
+Zero provider page/point counters alone do not prove that metadata never acquired storage handles. That claim also
+requires following the dedicated contexts-only visitor: it never calls physical-series construction, retention lookup,
+or sample cursors. The archived-label trace has the existing full-label discovery as a positive control. The failed-read
+sort fixture exercises backing bounds failure; it does not simulate a physical disk fault.
+
+The [qualification receipt](metadata-descriptions-qualification.json) binds 300 source files, all six storage phases,
+20 metadata API cases per codec, nine ownership/traversal cases, eight sort cases, and 69 HTTP checks per codec
+(25 metadata-specific). HTTP evidence uses identical production sources before the final test-only cancellation
+addition; both binary identities and the two-file test delta are retained explicitly. This is fixture qualification,
+not a deployed latency measurement.

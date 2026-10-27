@@ -9,7 +9,9 @@
 #include "provider.h"
 #include "output.h"
 
-typedef enum { PROMQL_API_QUERY, PROMQL_API_RANGE, PROMQL_API_LABELS, PROMQL_API_VALUES, PROMQL_API_SERIES } PROMQL_API_KIND;
+typedef enum {
+    PROMQL_API_QUERY, PROMQL_API_RANGE, PROMQL_API_LABELS, PROMQL_API_VALUES, PROMQL_API_SERIES, PROMQL_API_METADATA
+} PROMQL_API_KIND;
 
 typedef struct {
     int code;
@@ -52,5 +54,6 @@ bool promql_api_limit(PROMQL_API_REQUEST *request);
 void promql_api_replace_report(PROMQL_API_REQUEST *request, netdata_promql_report_t *report);
 uint32_t promql_api_observations(netdata_promql_engine_observations_t *out);
 bool promql_api_discovery(PROMQL_API_REQUEST *request, PROMQL_API_KIND kind);
+bool promql_api_metadata(PROMQL_API_REQUEST *request);
 
 #endif

@@ -70,14 +70,14 @@ static bool seed_readers(nd_uuid_t uuid) {
         sqlite3_exec(db_meta_thread, dimensions, NULL, NULL, NULL) == SQLITE_OK;
 }
 
-static int unavailable_discovery(RRDHOST *host) {
+static int unavailable_response(RRDHOST *host, bool metadata) {
     size_t memory = 0;
     struct web_client *client = web_client_create(&memory);
     client->mode = HTTP_REQUEST_MODE_GET;
     client->promql_scoped = true;
     memcpy(client->promql_host_guid, host->machine_guid, sizeof(client->promql_host_guid));
-    buffer_strcat(client->url_as_received, "/api/v1/labels?match[]=fixture_a");
-    int errors = api_v1_promql_labels(host, client, NULL) != 500;
+    buffer_strcat(client->url_as_received, metadata ? "/api/v1/metadata" : "/api/v1/labels?match[]=fixture_a");
+    int errors = (metadata ? api_v1_promql_metadata(host, client, NULL) : api_v1_promql_labels(host, client, NULL)) != 500;
     PROMQL_BODY *body = client->response.promql_body;
     char text[1024];
     uint64_t length = promql_body_length(body);
@@ -90,6 +90,10 @@ static int unavailable_discovery(RRDHOST *host) {
     web_client_free(client);
     errors += memory != 0 || promql_operations_active();
     return errors;
+}
+
+static int unavailable_discovery(RRDHOST *host) {
+    return unavailable_response(host, false) + unavailable_response(host, true);
 }
 
 typedef struct {

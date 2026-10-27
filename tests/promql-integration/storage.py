@@ -48,6 +48,11 @@ METADATA_REF_CASES = {"immutable-source-views", "archived-cold", "archived-hit",
 REQUEST_CASES = {"body-first", "escaped-separators", "embedded-nul", "empty-first", "invalid-field", "semicolon-order",
                  "escaped-semicolon", "non-form-body", "mime-error-first", "mime-duplicate-same",
                  "mime-duplicate-different", "body-error-before-url", "mime-unicode-i", "mime-unicode-k"}
+DESCRIPTION_CASES = {"archived-description-unloaded", "description-no-samples", "description-frozen-strings",
+                     "description-updated-strings", "description-deleted-metric", "description-deleted-instance",
+                     "description-deleted-context", "description-no-dimensions", "description-cancel-after-row"}
+DESCRIPTION_SORT_CASES = {"empty", "single", "sorted-long", "reverse-long", "cancel-initialization",
+                          "cancel-comparison", "cancel-emission", "read-failure"}
 API_HANDLER_CASES = {
     "scalar", "live-gauge", "counter-absolute", "counter-legacy", "fleet-aliases", "form-body-priority", "range",
     "range-end-order", "range-zero-step", "range-type", "range-submillisecond", "empty-query", "time-wrapper",
@@ -58,6 +63,8 @@ API_HANDLER_CASES = {
     "selector-syntax-before-guard", "discovery-reversed", "execution-error-drops-infos",
     "caller-expired", "caller-expired-before-parse", "caller-keeps-uri-deadline", "cancel-on-registration",
     "pooled-release",
+    "metadata-alias", "metadata-exact", "metadata-missing", "metadata-zero", "metadata-negative", "metadata-one", "metadata-per-zero", "metadata-ignore-time", "metadata-max", "metadata-min", "metadata-plus", "metadata-duplicate", "metadata-overflow", "metadata-underflow", "metadata-invalid", "metadata-space", "metadata-nul", "metadata-per-invalid",
+    "metadata-get-only", "metadata-cancel",
 }
 MQTT_SOURCE_CASES = {"short-8193", "short-1000000", "timeout-release", "reconnect-purge", "read-error-stops",
                      "compact-partial", "view-refusal", "wire-limits"}
@@ -201,6 +208,8 @@ def main():
                 outputs = [row for row in rows if "output_case" in row]
                 natives = [row for row in rows if "native_case" in row]
                 metadata_refs = [row for row in rows if "metadata_ref_case" in row]
+                descriptions = [row for row in rows if "metadata_description_case" in row]
+                description_sorts = [row for row in rows if "metadata_sort_case" in row]
                 requests = [row for row in rows if "request_case" in row]
                 api_handlers = [row for row in rows if "api_handler_case" in row]
                 mqtt_sources = [row for row in rows if "mqtt_source_case" in row]
@@ -218,6 +227,8 @@ def main():
                 expected_outputs = OUTPUT_CASES if phase == "read" else set()
                 expected_natives = NATIVE_CASES if phase == "read" else set()
                 expected_refs = METADATA_REF_CASES if phase == "read" else set()
+                expected_descriptions = DESCRIPTION_CASES if phase == "read" else set()
+                expected_description_sorts = DESCRIPTION_SORT_CASES if phase == "read" else set()
                 expected_requests = REQUEST_CASES if phase == "read" else set()
                 expected_api = API_HANDLER_CASES if phase == "read" else set()
                 expected_mqtt = MQTT_SOURCE_CASES if phase == "read" else set()
@@ -226,7 +237,7 @@ def main():
                 expected_operations = OPERATION_CASES if phase == "read" else set()
                 expected_routes = API_ROUTE_CASES if phase == "read" else set()
                 expected_peers = RTC_PEER_CASES if phase == "read" and args.rtc_peers else set()
-                if (result or len(rows) != 36 + len(expected_geometry) + len(expected_singletons) + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
+                if (result or len(rows) != 36 + len(expected_geometry) + len(expected_singletons) + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_descriptions) + len(expected_description_sorts) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
                         or {row["storage_geometry"] for row in geometry} != expected_geometry
                         or any(row["errors"] for row in rows)
                         or {(row["storage_singleton"], row["tier"]) for row in singletons} != expected_singletons
@@ -240,6 +251,9 @@ def main():
                         or {row["native_case"] for row in natives} != expected_natives
                         or any(not row["short_write"] or row["bytes"] != row["received"] for row in natives)
                         or {row["metadata_ref_case"] for row in metadata_refs} != expected_refs
+                        or {row["metadata_description_case"] for row in descriptions} != expected_descriptions
+                        or {row["metadata_sort_case"] for row in description_sorts} != expected_description_sorts
+                        or any(row["rows"] and not row["pointer_checks"] for row in descriptions)
                         or {row["request_case"] for row in requests} != expected_requests
                         or {row["api_handler_case"] for row in api_handlers} != expected_api
                         or {row["mqtt_source_case"] for row in mqtt_sources} != expected_mqtt

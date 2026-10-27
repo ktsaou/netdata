@@ -143,6 +143,9 @@ def qualify(binary, codec, run, observe=None):
                 record = {"name": name, **observed, "passed": False}
                 item["checks"].append(record)
                 if observed["status"] != status or (expected is not None and value != expected) or (inspect is not None and not inspect(value)):
+                    capture = root / f"failed-response-{len(item['checks'])}.json.gz"
+                    capture.write_bytes(gzip.compress(body, mtime=0))
+                    record["failed_response"] = {"file": capture.name, "sha256": sha256(capture)}
                     raise RuntimeError(f"{name}: unexpected HTTP result: {body[:800]!r}")
                 if compressed and observed["headers"].get("Content-Encoding") != "gzip":
                     raise RuntimeError(f"{name}: requested gzip response was not encoded")
@@ -152,6 +155,33 @@ def qualify(binary, codec, run, observe=None):
                 return {"status": "success", "data": {"resultType": "scalar", "result": [when, str(value)]}}
 
             local, child = "/host/" + ready["host"], "/host/" + ready["child"]
+            basic_metadata = [{"type": kind, "help": "HTTP collection fixture", "unit": "KiB"}
+                              for kind in ("counter", "gauge")]
+            # Chart creation normalizes quotes, slashes and trailing whitespace before contexts owns the title.
+            long_title = "Z" * 9000 + " quote' slash/ line"
+            for scope_name, scope in [("fleet", ""), ("local", local), ("child", child)]:
+                for metric in ("fixture.http", "fixture_http"):
+                    check(f"metadata-{scope_name}-{metric}", "metadata", {"metric": metric},
+                          {"status": "success", "data": {metric: basic_metadata}}, prefix=scope)
+                titles = ["Child description", "Local description"] if not scope else [
+                    "Local description" if scope == local else "Child description"]
+                descriptions = [{"type": "gauge", "help": title, "unit": "KiB"}
+                                for title in ["Common description", long_title, *titles]]
+                descriptions.append({"type": "gauge", "help": "Common description", "unit": "MiB"})
+                for metric in ("fixture.descriptions", "fixture_descriptions"):
+                    wanted = list(descriptions)
+                    if metric == "fixture_descriptions":
+                        wanted.append({"type": "gauge", "help": "Alias collision", "unit": "KiB"})
+                    wanted.sort(key=lambda x: (x["type"], x["help"], x["unit"]))
+                    for compressed in (False, True):
+                        check(f"metadata-large-{scope_name}-{metric}-{compressed}", "metadata", {"metric": metric},
+                              {"status": "success", "data": {metric: wanted}}, prefix=scope, compressed=compressed)
+                    check(f"metadata-per-limit-{scope_name}-{metric}", "metadata",
+                          {"metric": metric, "limit_per_metric": 2}, {"status": "success", "data": {metric: wanted[:2]}},
+                          prefix=scope)
+            check("metadata-all-name-limit", "metadata", {"limit": 1, "limit_per_metric": 1},
+                  {"status": "success", "data": {"fixture.descriptions": [
+                      {"type": "gauge", "help": "Child description", "unit": "KiB"}]}})
             expressions = fixture_expressions()
             gauge, counter = expressions["gauge"], expressions["counter"]
             for name, scope, value in [("fleet-gauge", "", 12), ("local-gauge", local, 5), ("child-gauge", child, 7)]:

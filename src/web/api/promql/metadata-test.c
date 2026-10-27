@@ -138,6 +138,84 @@ static int label_trace(unsigned event, void *context, void *statement, void *unu
     return 0;
 }
 
+typedef enum { DESCRIPTION_NORMAL, DESCRIPTION_MUTATE, DESCRIPTION_CANCEL } DESCRIPTION_MODE;
+
+typedef struct {
+    PROMQL_PROVIDER_CONTEXT provider;
+    netdata_promql_control_t *control;
+    RRDINSTANCE *instance;
+    const uint8_t *help, *unit;
+    char help_text[256], unit_text[256];
+    unsigned rows, pointer_checks;
+    int errors;
+    DESCRIPTION_MODE mode;
+} DESCRIPTION_PROBE;
+
+static uint32_t description_probe_row(void *context, const PROMQL_DESCRIPTION *description,
+                                      PROMQL_READ_FRAME *frame __maybe_unused,
+                                      netdata_promql_bytes_t *error __maybe_unused) {
+    DESCRIPTION_PROBE *probe = context;
+    probe->errors += description->help.data != probe->help || description->unit.data != probe->unit;
+    probe->pointer_checks += 2;
+    if(probe->mode == DESCRIPTION_MUTATE && !probe->rows) {
+        rrdinstance_metadata_lock(probe->instance);
+        string_freez(probe->instance->title); string_freez(probe->instance->units);
+        probe->instance->title = string_strdupz("Changed description");
+        probe->instance->units = string_strdupz("changed units");
+        rrdinstance_metadata_changed(probe->instance);
+        rrdinstance_metadata_unlock(probe->instance);
+        probe->errors += description->help.len != strlen(probe->help_text) ||
+            memcmp(description->help.data, probe->help_text, (size_t)description->help.len) ||
+            description->unit.len != strlen(probe->unit_text) ||
+            memcmp(description->unit.data, probe->unit_text, (size_t)description->unit.len);
+        probe->pointer_checks += 2;
+    }
+    probe->rows++;
+    if(probe->mode == DESCRIPTION_CANCEL && probe->rows == 1)
+        probe->errors += netdata_promql_control_cancel(probe->control) != NETDATA_PROMQL_OK;
+    return NETDATA_PROMQL_OK;
+}
+
+static void description_probe_accounted(void *context, void *handle __maybe_unused,
+                                         const netdata_promql_accounting_context_t *account) {
+    DESCRIPTION_PROBE *probe = context;
+    PROMQL_READ_FRAME frame = {.account = account, .call_control = probe->control};
+    netdata_promql_bytes_t error = {0};
+    uint32_t expected = probe->mode == DESCRIPTION_CANCEL ? NETDATA_PROMQL_CANCELLED : NETDATA_PROMQL_OK;
+    probe->errors += promql_metadata_describe(&probe->provider, promql_bytes(string2str(probe->instance->rc->id)),
+        &frame, description_probe_row, probe, &error) != expected;
+}
+
+static int description_probe(netdata_promql_engine_t *engine, RRDINSTANCE *instance,
+                               const char *name, unsigned rows, DESCRIPTION_MODE mode) {
+    DESCRIPTION_PROBE probe = {.provider = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid},
+        .instance = instance, .mode = mode};
+    if(netdata_promql_control_create(engine, NULL, &probe.control) != NETDATA_PROMQL_OK) return 1;
+    rrdinstance_metadata_lock(instance);
+    probe.help = (const uint8_t *)string2str(instance->title);
+    probe.unit = (const uint8_t *)string2str(instance->units);
+    snprintfz(probe.help_text, sizeof(probe.help_text) - 1, "%s", (const char *)probe.help);
+    snprintfz(probe.unit_text, sizeof(probe.unit_text) - 1, "%s", (const char *)probe.unit);
+    rrdinstance_metadata_unlock(instance);
+    netdata_promql_report_t *report = NULL;
+    int64_t limit;
+    probe.errors += netdata_promql_api_parse_limit(engine, (netdata_promql_bytes_t){0}, NULL, &limit, &report) != NETDATA_PROMQL_OK;
+    if(report) {
+        probe.errors += netdata_promql_report_accounted(report, description_probe_accounted, &probe, NULL) != NETDATA_PROMQL_OK;
+        netdata_promql_report_release(report);
+    }
+    probe.errors += netdata_promql_control_release(probe.control) != NETDATA_PROMQL_OK;
+    probe.errors += probe.rows != rows;
+    for(size_t tier = 0; tier < RRD_STORAGE_TIERS; tier++)
+        probe.errors += probe.provider.storage_pages[tier] != 0 || probe.provider.storage_points[tier] != 0;
+    netdata_promql_engine_observations_t observed = {0};
+    probe.errors += netdata_promql_engine_observations(engine, &observed) != NETDATA_PROMQL_OK ||
+        observed.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current || observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current;
+    printf("{\"metadata_description_case\":\"%s\",\"errors\":%d,\"rows\":%u,\"pointer_checks\":%u}\n",
+        name, probe.errors, probe.rows, probe.pointer_checks);
+    return probe.errors;
+}
+
 static int names_retention_fixture(netdata_promql_engine_t *engine) {
     RRDSET *chart = rrdset_create(localhost, "promql_fixture", "witness", NULL, "fixture", "fixture.witness",
         "Name retention fixture", "units", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
@@ -223,6 +301,8 @@ int promql_metadata_reference_fixture(netdata_promql_engine_t *engine, RRDSET *c
     result = (REFERENCE_RESULT){.instance = instance};
     selector = reference_selector(engine, "fixture_cached");
     if(seeded && selector && sqlite3_trace_v2(db_context_meta, SQLITE_TRACE_STMT, label_trace, &result) == SQLITE_OK) {
+        errors += description_probe(engine, instance, "archived-description-unloaded", 1, DESCRIPTION_NORMAL);
+        errors += result.sql_reads != 0 || !rrd_flag_check(instance, RRD_FLAG_DEMAND_LABELS);
         result.names_only = true;
         errors += reference_discover(engine, selector, &result, "names-archived-unloaded", 1, 0);
         errors += !rrd_flag_check(instance, RRD_FLAG_DEMAND_LABELS);
@@ -236,8 +316,37 @@ int promql_metadata_reference_fixture(netdata_promql_engine_t *engine, RRDSET *c
     if(selector) netdata_promql_selector_release(selector);
     string_freez(result.label_name);
     string_freez(result.label_value);
+    // The chart is gone: only the callback's references retain the replaced strings.
+    errors += description_probe(engine, instance, "description-frozen-strings", 1, DESCRIPTION_MUTATE);
+    errors += description_probe(engine, instance, "description-updated-strings", 1, DESCRIPTION_NORMAL);
     rrdinstance_release(instance_owner);
     rrdcontext_release(context_owner);
     errors += names_retention_fixture(engine);
+    RRDSET *description = rrdset_create(localhost, "promql_fixture", "description", NULL, "fixture", "fixture.description",
+        "Description without samples", "MiB", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
+    if(!description) return errors + 1;
+    RRDDIM *empty = rrddim_add(description, "empty", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+    if(empty) {
+        RRDINSTANCE *ri = rrdinstance_acquired_value(description->rrdcontexts.rrdinstance);
+        errors += description_probe(engine, ri, "description-no-samples", 1, DESCRIPTION_NORMAL);
+        errors += description_probe(engine, ri, "description-cancel-after-row", 1, DESCRIPTION_CANCEL);
+        RRDMETRIC *rm = rrdmetric_acquired_value(empty->rrdcontexts.rrdmetric);
+        RRD_FLAGS *flags[] = {&rm->flags, &ri->flags, &ri->rc->flags};
+        const char *names[] = {"description-deleted-metric", "description-deleted-instance", "description-deleted-context"};
+        for(size_t i = 0; i < 3; i++) {
+            RRD_FLAGS original = __atomic_load_n(flags[i], __ATOMIC_SEQ_CST);
+            rrd_flags_replace_atomic(flags[i], original | RRD_FLAG_DELETED);
+            errors += description_probe(engine, ri, names[i], 0, DESCRIPTION_NORMAL);
+            rrd_flags_replace_atomic(flags[i], original);
+        }
+    }
+    else errors++;
+    rrdset_free(description);
+    RRDSET *no_dimensions = rrdset_create(localhost, "promql_fixture", "description_empty", NULL, "fixture", "fixture.description_empty",
+        "Description without dimensions", "KiB", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
+    if(!no_dimensions) return errors + 1;
+    errors += description_probe(engine, rrdinstance_acquired_value(no_dimensions->rrdcontexts.rrdinstance),
+        "description-no-dimensions", 0, DESCRIPTION_NORMAL);
+    rrdset_free(no_dimensions);
     return errors;
 }

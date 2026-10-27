@@ -447,7 +447,8 @@ static int dispatch(struct web_client *client, PROMQL_API_KIND kind) {
         status = netdata_promql_api_parse_limit(request.engine, (netdata_promql_bytes_t){0}, request.operation.control,
             &initial_limit, &request.report);
         if(status != NETDATA_PROMQL_OK) promql_api_report_failure(&request, status, NULL, (netdata_promql_bytes_t){0});
-        else if(client->mode != HTTP_REQUEST_MODE_GET && (client->mode != HTTP_REQUEST_MODE_POST || kind == PROMQL_API_VALUES))
+        else if(client->mode != HTTP_REQUEST_MODE_GET &&
+                (client->mode != HTTP_REQUEST_MODE_POST || kind == PROMQL_API_VALUES || kind == PROMQL_API_METADATA))
             request.failure = (PROMQL_API_ERROR){.code = HTTP_RESP_METHOD_NOT_ALLOWED, .type = "bad_data", .message = promql_bytes("method not allowed")};
         else {
             status = netdata_promql_report_accounted(request.report, prepare_form, &request, NULL);
@@ -460,7 +461,7 @@ static int dispatch(struct web_client *client, PROMQL_API_KIND kind) {
             }
             if(!request.failure.code) {
                 bool success = kind == PROMQL_API_QUERY || kind == PROMQL_API_RANGE ? query(&request, kind == PROMQL_API_RANGE) :
-                    promql_api_discovery(&request, kind);
+                    kind == PROMQL_API_METADATA ? promql_api_metadata(&request) : promql_api_discovery(&request, kind);
                 if(!success && !request.failure.code) promql_api_report_failure(&request, NETDATA_PROMQL_INTERNAL_ERROR, NULL, (netdata_promql_bytes_t){0});
             }
         }
@@ -507,4 +508,7 @@ int api_v1_promql_label_values(RRDHOST *host __maybe_unused, struct web_client *
 }
 int api_v1_promql_series(RRDHOST *host __maybe_unused, struct web_client *client, char *query_string __maybe_unused) {
     return dispatch(client, PROMQL_API_SERIES);
+}
+int api_v1_promql_metadata(RRDHOST *host __maybe_unused, struct web_client *client, char *query_string __maybe_unused) {
+    return dispatch(client, PROMQL_API_METADATA);
 }

@@ -5,6 +5,7 @@
 #include "notes.h"
 
 typedef struct { uint64_t key, length, hash, json, json_length; } DISCOVERY_ENTRY;
+typedef struct { uint64_t json_name_length, key_name_length; } DESCRIPTION_RECORD;
 typedef struct {
     PROMQL_API_REQUEST *request;
     PROMQL_API_KIND kind;
@@ -16,6 +17,8 @@ typedef struct {
     netdata_promql_report_t *sort_report;
     bool committed;
     int failure;
+    int64_t metric_limit, description_limit;
+    uint32_t status;
     char error[192];
 } DISCOVERY_OUTPUT;
 
@@ -33,6 +36,15 @@ static uint32_t output_error(DISCOVERY_OUTPUT *output, PROMQL_READ_FRAME *frame,
     snprintfz(output->error, sizeof(output->error) - 1, "PromQL metadata response backing: %s", strerror(output->failure));
     *error = promql_bytes(output->error);
     return NETDATA_PROMQL_OUTPUT_ERROR;
+}
+
+static bool create_records(DISCOVERY_OUTPUT *output, PROMQL_READ_FRAME *frame) {
+    output->records = promql_body_create(frame->account, output->request->directory, NETDATA_PROMQL_MEMORY_RESULT, &output->failure);
+    output->body = promql_body_create(frame->account, output->request->directory, NETDATA_PROMQL_MEMORY_RESULT, &output->failure);
+    output->window = promql_malloc(frame->account, NETDATA_PROMQL_MEMORY_WORKSPACE, PROMQL_BODY_WINDOW);
+    if(output->records && output->body && output->window) return true;
+    if(!output->failure) output->failure = ENOMEM;
+    return false;
 }
 
 static bool reserve(DISCOVERY_OUTPUT *output, PROMQL_READ_FRAME *frame) {
@@ -63,6 +75,24 @@ overflow:
     return false;
 }
 
+static bool description_record(DISCOVERY_OUTPUT *output, PROMQL_KEY_VIEW view, PROMQL_READ_FRAME *frame) {
+    netdata_promql_bytes_t name = view.labels.data[0].name;
+    DESCRIPTION_RECORD header = {0};
+    uint64_t hash, offset = promql_body_length(output->records);
+    if(!promql_key_measure((PROMQL_KEY_VIEW){.single = true, .field = name}, &header.key_name_length, &hash,
+        frame, &output->failure) || !promql_body_append(output->records, &header, sizeof(header), frame, &output->failure) ||
+       !promql_json_string(output->records, name, PROMQL_JSON_ENVELOPE, frame, &output->failure)) return false;
+    header.json_name_length = promql_body_length(output->records) - offset - sizeof(header);
+    return promql_body_write(output->records, offset, &header, sizeof(header), frame, &output->failure) &&
+        promql_json_text(output->records, "{\"type\":", frame, &output->failure) &&
+        promql_json_string(output->records, view.labels.data[0].value, PROMQL_JSON_ENVELOPE, frame, &output->failure) &&
+        promql_json_text(output->records, ",\"help\":", frame, &output->failure) &&
+        promql_json_string(output->records, view.labels.data[1].name, PROMQL_JSON_ENVELOPE, frame, &output->failure) &&
+        promql_json_text(output->records, ",\"unit\":", frame, &output->failure) &&
+        promql_json_string(output->records, view.labels.data[1].value, PROMQL_JSON_ENVELOPE, frame, &output->failure) &&
+        promql_json_text(output->records, "}", frame, &output->failure);
+}
+
 static bool intern(DISCOVERY_OUTPUT *output, PROMQL_KEY_VIEW view, PROMQL_READ_FRAME *frame) {
     uint64_t length, hash;
     if(!promql_key_measure(view, &length, &hash, frame, &output->failure)) return false;
@@ -86,7 +116,8 @@ static bool intern(DISCOVERY_OUTPUT *output, PROMQL_KEY_VIEW view, PROMQL_READ_F
     *entry = (DISCOVERY_ENTRY){.key = promql_body_length(output->records), .length = length, .hash = hash};
     if(!promql_key_write(output->records, view, frame, &output->failure)) return false;
     entry->json = promql_body_length(output->records);
-    bool valid = view.single ? promql_json_string(output->records, view.field, PROMQL_JSON_ENVELOPE, frame, &output->failure) :
+    bool valid = output->kind == PROMQL_API_METADATA ? description_record(output, view, frame) :
+        view.single ? promql_json_string(output->records, view.field, PROMQL_JSON_ENVELOPE, frame, &output->failure) :
         promql_json_labels(output->records, view.labels, PROMQL_JSON_METRIC, frame, &output->failure);
     if(!valid) return false;
     entry->json_length = promql_body_length(output->records) - entry->json;
@@ -99,13 +130,7 @@ static uint32_t begin(void *context, const netdata_promql_output_header_t *heade
     DISCOVERY_OUTPUT *output = context;
     PROMQL_READ_FRAME frame; promql_read_operation(&frame, control);
     if(header->value_type != NETDATA_PROMQL_TYPE_VECTOR) { *error = promql_bytes("invalid discovery header"); return NETDATA_PROMQL_OUTPUT_ERROR; }
-    output->records = promql_body_create(frame.account, output->request->directory, NETDATA_PROMQL_MEMORY_RESULT, &output->failure);
-    output->body = promql_body_create(frame.account, output->request->directory, NETDATA_PROMQL_MEMORY_RESULT, &output->failure);
-    output->window = promql_malloc(frame.account, NETDATA_PROMQL_MEMORY_WORKSPACE, PROMQL_BODY_WINDOW);
-    if(!output->records || !output->body || !output->window) {
-        if(!output->failure) output->failure = ENOMEM;
-        return output_error(output, &frame, error);
-    }
+    if(!create_records(output, &frame)) return output_error(output, &frame, error);
     return NETDATA_PROMQL_OK;
 }
 
@@ -143,14 +168,19 @@ static uint32_t chunk(void *context, const netdata_promql_chunk_t *chunk,
     return NETDATA_PROMQL_OK;
 }
 
+static bool compare_keys(DISCOVERY_OUTPUT *output, uint64_t left, uint64_t right,
+                          PROMQL_READ_FRAME *frame, int32_t *ordering) {
+    DISCOVERY_ENTRY *a = &output->entries[left], *b = &output->entries[right];
+    return promql_body_compare(output->records, a->key, a->length, b->key, b->length,
+        output->window, frame, &output->failure, ordering);
+}
+
 static uint32_t compare_entries(void *context, uint64_t left, uint64_t right,
                                  const netdata_promql_callback_control_t *control, int32_t *ordering,
                                  netdata_promql_bytes_t *error) {
     DISCOVERY_OUTPUT *output = context;
     PROMQL_READ_FRAME frame; promql_read_operation(&frame, control);
-    DISCOVERY_ENTRY *a = &output->entries[left], *b = &output->entries[right];
-    if(!promql_body_compare(output->records, a->key, a->length, b->key, b->length,
-        output->window, &frame, &output->failure, ordering)) return output_error(output, &frame, error);
+    if(!compare_keys(output, left, right, &frame, ordering)) return output_error(output, &frame, error);
     return NETDATA_PROMQL_OK;
 }
 
@@ -282,3 +312,252 @@ bool promql_api_discovery(PROMQL_API_REQUEST *request, PROMQL_API_KIND kind) {
     promql_body_release(output.body);
     return request->body != NULL;
 }
+
+static bool description_heap(DISCOVERY_OUTPUT *output, uint64_t *order, size_t root, size_t count,
+                               PROMQL_READ_FRAME *frame) {
+    while(root < count / 2) {
+        size_t child = root * 2 + 1;
+        int32_t comparison;
+        if(child + 1 < count) {
+            if(!compare_keys(output, order[child], order[child + 1], frame, &comparison)) return false;
+            if(comparison < 0) child++;
+        }
+        if(!compare_keys(output, order[root], order[child], frame, &comparison)) return false;
+        if(comparison >= 0) break;
+        SWAP(order[root], order[child]);
+        root = child;
+    }
+    return true;
+}
+
+static bool description_sort(DISCOVERY_OUTPUT *output, uint64_t *order, PROMQL_READ_FRAME *frame) {
+    for(size_t i = 0; i < output->count; i++) {
+        if(!(i % 1024) && !promql_read_poll(frame)) { output->failure = ECANCELED; return false; }
+        order[i] = i;
+    }
+    for(size_t root = output->count / 2; root; root--)
+        if(!description_heap(output, order, root - 1, output->count, frame)) return false;
+    for(size_t remaining = output->count; remaining > 1; remaining--) {
+        SWAP(order[0], order[remaining - 1]);
+        if(!description_heap(output, order, 0, remaining - 1, frame)) return false;
+    }
+    return true;
+}
+
+static bool descriptions_write(DISCOVERY_OUTPUT *output, const uint64_t *order, PROMQL_READ_FRAME *frame) {
+    if(!promql_json_text(output->body, "{\"status\":\"success\",\"data\":{", frame, &output->failure)) return false;
+    uint64_t groups = 0, values = 0;
+    DISCOVERY_ENTRY *previous = NULL;
+    DESCRIPTION_RECORD previous_header = {0};
+    for(size_t i = 0; i < output->count; i++) {
+        if(!promql_read_poll(frame)) { output->failure = ECANCELED; return false; }
+        DISCOVERY_ENTRY *entry = &output->entries[order[i]];
+        DESCRIPTION_RECORD header;
+        if(entry->json_length < sizeof(header)) { output->failure = EINVAL; return false; }
+        if(!promql_body_read(output->records, entry->json, &header, sizeof(header), frame, &output->failure)) return false;
+        if(header.json_name_length > entry->json_length - sizeof(header) || header.key_name_length > entry->length) {
+            output->failure = EINVAL; return false;
+        }
+        int32_t comparison = 1;
+        if(previous && !promql_body_compare(output->records, previous->key, previous_header.key_name_length,
+            entry->key, header.key_name_length, output->window, frame, &output->failure, &comparison)) return false;
+        if(comparison) {
+            if(output->metric_limit >= 0 && groups >= (uint64_t)output->metric_limit) break;
+            if((groups && !promql_json_text(output->body, "],", frame, &output->failure)) ||
+               !promql_body_copy(output->records, entry->json + sizeof(header), header.json_name_length,
+                   output->body, output->window, frame, &output->failure) ||
+               !promql_json_text(output->body, ":[", frame, &output->failure)) return false;
+            groups++; values = 0; previous = entry; previous_header = header;
+        }
+        if(output->description_limit > 0 && values >= (uint64_t)output->description_limit) continue;
+        uint64_t prefix = sizeof(header) + header.json_name_length;
+        if((values && !promql_json_text(output->body, ",", frame, &output->failure)) ||
+           !promql_body_copy(output->records, entry->json + prefix, entry->json_length - prefix,
+               output->body, output->window, frame, &output->failure)) return false;
+        values++;
+    }
+    return (!groups || promql_json_text(output->body, "]", frame, &output->failure)) &&
+        promql_json_text(output->body, "}}", frame, &output->failure) &&
+        promql_body_seal(output->body, frame, &output->failure);
+}
+
+static uint32_t description_visit(void *context, const PROMQL_DESCRIPTION *description,
+                                   PROMQL_READ_FRAME *frame, netdata_promql_bytes_t *error) {
+    DISCOVERY_OUTPUT *output = context;
+    // The key encoder preserves all four byte fields; these pairs are not series labels.
+    netdata_promql_label_t fields[] = {{description->name, description->type}, {description->help, description->unit}};
+    if(!intern(output, (PROMQL_KEY_VIEW){.labels = {fields, 2}}, frame)) return output_error(output, frame, error);
+    return NETDATA_PROMQL_OK;
+}
+
+static void prepare_descriptions(void *context, void *handle __maybe_unused,
+                                  const netdata_promql_accounting_context_t *account) {
+    DISCOVERY_OUTPUT *output = context;
+    PROMQL_API_REQUEST *request = output->request;
+    PROMQL_READ_FRAME frame = {.account = account, .call_control = request->operation.control};
+    netdata_promql_bytes_t message = {0};
+    uint64_t *order = NULL;
+    if(!create_records(output, &frame)) goto failed;
+    output->status = promql_metadata_describe(&request->context, promql_form_value(request->form, PROMQL_PARAM_METRIC),
+        &frame, description_visit, output, &message);
+    if(output->status != NETDATA_PROMQL_OK) goto failed;
+    if(output->count) {
+        if(output->count > SIZE_MAX / sizeof(*order)) { output->failure = EOVERFLOW; goto failed; }
+        order = promql_malloc(account, NETDATA_PROMQL_MEMORY_WORKSPACE, output->count * sizeof(*order));
+        if(!order) { output->failure = ENOMEM; goto failed; }
+        if(!description_sort(output, order, &frame)) goto failed;
+    }
+    if(!descriptions_write(output, order, &frame)) goto failed;
+    if(request->gzip) {
+        PROMQL_BODY *encoded = promql_body_gzip(output->body, &frame, web_gzip_level, web_gzip_strategy, &output->failure);
+        if(!encoded) goto failed;
+        promql_body_release(output->body); output->body = encoded;
+    }
+    if(!promql_read_poll(&frame)) { output->failure = ECANCELED; goto failed; }
+    promql_free(order);
+    release_records(output);
+    output->committed = true;
+    return;
+failed:
+    if(output->status == NETDATA_PROMQL_OK) output->status = output_error(output, &frame, &message);
+    if(message.len) {
+        // Direct accounting callbacks do not copy the message into a Rust report.
+        size_t length = (size_t)MIN(message.len, sizeof(request->context.error) - 1);
+        memmove(request->context.error, message.data, length);
+        request->context.error[length] = 0;
+    }
+    promql_free(order);
+    abort_output(output, account);
+}
+
+static bool description_limit(PROMQL_API_REQUEST *request, PROMQL_PARAMETER parameter, const char *error,
+                                int64_t *limit) {
+    netdata_promql_bytes_t text = promql_form_value(request->form, parameter);
+    *limit = -1;
+    if(!text.len) return true;
+    size_t i = 0;
+    bool negative = text.data[0] == '-';
+    if(negative || text.data[0] == '+') i++;
+    if(i == text.len) goto invalid;
+    uint64_t value = 0, maximum = negative ? (uint64_t)INT64_MAX + 1 : (uint64_t)INT64_MAX;
+    PROMQL_READ_FRAME frame = {.call_control = request->operation.control};
+    for(; i < text.len; i++) {
+        if(!(i % 1024) && !promql_read_poll(&frame)) {
+            promql_api_report_failure(request, frame.interrupted, NULL, (netdata_promql_bytes_t){0}); return false;
+        }
+        uint8_t digit = text.data[i] - '0';
+        if(digit > 9 || value > (maximum - digit) / 10) goto invalid;
+        value = value * 10 + digit;
+    }
+    *limit = negative ? value == (uint64_t)INT64_MAX + 1 ? INT64_MIN : -(int64_t)value : (int64_t)value;
+    return true;
+invalid:
+    promql_api_bad_data(request, NULL, error);
+    return false;
+}
+
+bool promql_api_metadata(PROMQL_API_REQUEST *request) {
+    DISCOVERY_OUTPUT output = {.request = request, .kind = PROMQL_API_METADATA};
+    if(!description_limit(request, PROMQL_PARAM_LIMIT, "limit must be a number", &output.metric_limit) ||
+       !description_limit(request, PROMQL_PARAM_LIMIT_PER_METRIC, "limit_per_metric must be a number", &output.description_limit))
+        return false;
+    uint32_t status = netdata_promql_report_accounted(request->report, prepare_descriptions, &output, NULL);
+    if(status == NETDATA_PROMQL_OK) status = output.status;
+    if(status == NETDATA_PROMQL_OK && output.committed) { request->body = output.body; output.body = NULL; }
+    else {
+        promql_api_report_failure(request, status == NETDATA_PROMQL_OK ? NETDATA_PROMQL_INTERNAL_ERROR : status,
+            NULL, (netdata_promql_bytes_t){0});
+        if(request->context.error[0]) request->failure.message = promql_bytes(request->context.error);
+    }
+    release_records(&output);
+    promql_body_release(output.body);
+    return request->body != NULL;
+}
+
+#ifdef NETDATA_INTERNAL_CHECKS
+typedef struct {
+    netdata_promql_engine_t *engine;
+    unsigned count, mode;
+    bool reverse;
+    int errors;
+} DESCRIPTION_SORT_PROBE;
+
+static void description_sort_probe(void *context, void *handle __maybe_unused,
+                                    const netdata_promql_accounting_context_t *account) {
+    DESCRIPTION_SORT_PROBE *probe = context;
+    PROMQL_API_REQUEST request = {0};
+    DISCOVERY_OUTPUT output = {.request = &request, .kind = PROMQL_API_METADATA, .metric_limit = -1, .description_limit = -1};
+    PROMQL_READ_FRAME frame = {.account = account};
+    uint64_t *order = NULL;
+    netdata_promql_control_t *control = NULL;
+    netdata_promql_bytes_t error = {0};
+    output.records = promql_body_create(account, ".", NETDATA_PROMQL_MEMORY_RESULT, &output.failure);
+    output.body = promql_body_create(account, ".", NETDATA_PROMQL_MEMORY_RESULT, &output.failure);
+    output.window = promql_malloc(account, NETDATA_PROMQL_MEMORY_WORKSPACE, PROMQL_BODY_WINDOW);
+    if(!output.records || !output.body || !output.window) { probe->errors++; goto done; }
+    char help[9020];
+    memset(help, 'x', 9000);
+    for(unsigned i = 0; i < probe->count; i++) {
+        unsigned key = probe->reverse ? probe->count - i - 1 : i;
+        snprintfz(help + 9000, sizeof(help) - 9001, "%06u", key);
+        PROMQL_DESCRIPTION description = {.name = promql_bytes("fixture"), .type = promql_bytes("gauge"),
+            .help = promql_bytes(help), .unit = promql_bytes("KiB")};
+        for(unsigned duplicate = 0; duplicate < 2; duplicate++)
+            if(description_visit(&output, &description, &frame, &error) != NETDATA_PROMQL_OK) { probe->errors++; goto done; }
+    }
+    probe->errors += output.count != probe->count;
+    order = promql_malloc(account, NETDATA_PROMQL_MEMORY_WORKSPACE, MAX(output.count, 1) * sizeof(*order));
+    if(!order) { probe->errors++; goto done; }
+    if(probe->mode >= 1 && probe->mode <= 3) {
+        probe->errors += netdata_promql_control_create(probe->engine, NULL, &control) != NETDATA_PROMQL_OK;
+        if(!control) goto done;
+        probe->errors += netdata_promql_control_cancel(control) != NETDATA_PROMQL_OK;
+        frame.call_control = control;
+        for(size_t i = 0; i < output.count; i++) order[i] = i;
+        bool success = probe->mode == 1 ? description_sort(&output, order, &frame) :
+            probe->mode == 2 ? description_heap(&output, order, 0, output.count, &frame) :
+            descriptions_write(&output, order, &frame);
+        probe->errors += success || output.failure != ECANCELED || frame.interrupted != NETDATA_PROMQL_CANCELLED;
+    }
+    else if(probe->mode == 4) {
+        for(size_t i = 0; i < output.count; i++) output.entries[i].key = promql_body_length(output.records) + 1;
+        probe->errors += description_sort(&output, order, &frame) || output.failure != EINVAL;
+    }
+    else {
+        probe->errors += !description_sort(&output, order, &frame);
+        for(size_t i = 0; i < output.count; i++)
+            probe->errors += order[i] != (probe->reverse ? output.count - i - 1 : i);
+        probe->errors += !descriptions_write(&output, order, &frame) || !promql_body_is_sealed(output.body);
+    }
+done:
+    promql_free(order);
+    abort_output(&output, account);
+    if(control) netdata_promql_control_release(control);
+}
+
+int promql_description_sort_fixture(netdata_promql_engine_t *engine) {
+    const struct { const char *name; unsigned count, mode; bool reverse; } cases[] = {
+        {"empty", 0, 0, false}, {"single", 1, 0, false}, {"sorted-long", 37, 0, false},
+        {"reverse-long", 37, 0, true}, {"cancel-initialization", 37, 1, true},
+        {"cancel-comparison", 37, 2, true}, {"cancel-emission", 37, 3, true}, {"read-failure", 37, 4, true},
+    };
+    int errors = 0;
+    for(size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        DESCRIPTION_SORT_PROBE probe = {.engine = engine, .count = cases[i].count, .mode = cases[i].mode, .reverse = cases[i].reverse};
+        netdata_promql_report_t *report = NULL;
+        int64_t limit;
+        probe.errors += netdata_promql_api_parse_limit(engine, (netdata_promql_bytes_t){0}, NULL, &limit, &report) != NETDATA_PROMQL_OK;
+        if(report) {
+            probe.errors += netdata_promql_report_accounted(report, description_sort_probe, &probe, NULL) != NETDATA_PROMQL_OK;
+            netdata_promql_report_release(report);
+        }
+        netdata_promql_engine_observations_t observed = {0};
+        probe.errors += netdata_promql_engine_observations(engine, &observed) != NETDATA_PROMQL_OK;
+        for(size_t kind = 0; kind < NETDATA_PROMQL_MEMORY_KINDS; kind++)
+            if(kind != NETDATA_PROMQL_MEMORY_ACCOUNTING) probe.errors += observed.memory[kind].current != 0;
+        printf("{\"metadata_sort_case\":\"%s\",\"errors\":%d}\n", cases[i].name, probe.errors);
+        errors += probe.errors;
+    }
+    return errors;
+}
+#endif

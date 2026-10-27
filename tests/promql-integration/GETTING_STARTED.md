@@ -13,7 +13,7 @@ data collected on that machine. It uses a separate directory and a loopback HTTP
 - Counter-only page formats at every tier: one 8-byte anchor per page, with retained reset/gap flags. Historical
   counter data remains queryable through approximate cumulative reconstruction. Netdata units and interpolation stay
   in use; this does not recreate original Prometheus scrape samples.
-- Five APIs: instant query, range query, series, label names and label values. Existing host prefixes select one host;
+- Six APIs: instant query, range query, series, label names, label values and metric descriptions. Existing host prefixes select one host;
   an unprefixed request includes retained fleet hosts. Local HTTP, ACLK and WebRTC have bounded response delivery.
 - Query resource accounting, explicit deadlines and cancellation, conformance checks and real storage/HTTP/peer tests.
   Implicit resource limits remain disabled pending adaptive policy.
@@ -172,9 +172,12 @@ curl -fsS --get "$PROMQL_URL/series" --data-urlencode 'match[]=system_cpu'
 curl -fsS --get "$PROMQL_URL/labels" --data-urlencode 'match[]=system_cpu'
 curl -fsS --get "$PROMQL_URL/label/netdata_dimension_id/values" \
   --data-urlencode 'match[]=system_load'
+curl -fsS --get "$PROMQL_URL/metadata" --data-urlencode 'metric=system_cpu'
 ```
 
 Labels identify the host, chart, dimension and units. Use them to select and group the desired series.
+Metadata descriptions report chart titles, unchanged units and counter/gauge types from contexts, including archived
+entries. They do not prove that samples exist in a particular time range.
 Removing `/host/localhost` changes these requests to the retained fleet scope on the contacted Agent or Parent.
 
 ## Finish and troubleshoot

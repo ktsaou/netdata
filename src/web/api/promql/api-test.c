@@ -48,7 +48,7 @@ static int handler_case(const API_CASE *test, bool routed) {
     client->promql_scoped = !routed && !test->fleet;
     if(client->promql_scoped) memcpy(client->promql_host_guid, localhost->machine_guid, sizeof(client->promql_host_guid));
     const int (*handlers[])(RRDHOST *, struct web_client *, char *) = {
-        api_v1_promql_query, api_v1_promql_query_range, api_v1_promql_labels, api_v1_promql_label_values, api_v1_promql_series};
+        api_v1_promql_query, api_v1_promql_query_range, api_v1_promql_labels, api_v1_promql_label_values, api_v1_promql_series, api_v1_promql_metadata};
     int code = routed ? route_request(client, test->target) : handlers[test->kind](localhost, client, NULL);
     char bytes[PROMQL_BODY_WINDOW + 1];
     PROMQL_BODY *body = client->response.promql_body;
@@ -93,6 +93,26 @@ static int cache_release_case(void) {
 
 int promql_api_fixture(void) {
     static const API_CASE tests[] = {
+        {"metadata-alias", "/api/v1/metadata?metric=fixture_provider", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture_provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"},{\"type\":\"gauge\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-exact", "/api/v1/metadata?metric=fixture.provider", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture.provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"},{\"type\":\"gauge\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-missing", "/api/v1/metadata?metric=missing", NULL, NULL, "{\"status\":\"success\",\"data\":{}}", PROMQL_API_METADATA, 200},
+        {"metadata-zero", "/api/v1/metadata?metric=fixture_provider&limit=0", NULL, NULL, "{\"status\":\"success\",\"data\":{}}", PROMQL_API_METADATA, 200},
+        {"metadata-negative", "/api/v1/metadata?metric=fixture_provider&limit=-1&limit_per_metric=-2", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture_provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"},{\"type\":\"gauge\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-one", "/api/v1/metadata?metric=fixture_provider&limit=1&limit_per_metric=1", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture_provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-per-zero", "/api/v1/metadata?metric=fixture_provider&limit_per_metric=0", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture_provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"},{\"type\":\"gauge\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-ignore-time", "/api/v1/metadata?metric=fixture_provider&start=bad&end=bad&match[]=bad&timeout=bad", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture_provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"},{\"type\":\"gauge\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-max", "/api/v1/metadata?metric=fixture_provider&limit=9223372036854775807", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture_provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"},{\"type\":\"gauge\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-min", "/api/v1/metadata?metric=fixture_provider&limit=-9223372036854775808", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture_provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"},{\"type\":\"gauge\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-plus", "/api/v1/metadata?metric=fixture_provider&limit=%2B1", NULL, NULL, "{\"status\":\"success\",\"data\":{\"fixture_provider\":[{\"type\":\"counter\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"},{\"type\":\"gauge\",\"help\":\"Provider fixture\",\"unit\":\"KiB\"}]}}", PROMQL_API_METADATA, 200},
+        {"metadata-duplicate", "/api/v1/metadata?metric=fixture_provider&limit=0&limit=1", NULL, NULL, "{\"status\":\"success\",\"data\":{}}", PROMQL_API_METADATA, 200},
+        {"metadata-overflow", "/api/v1/metadata?metric=fixture_provider&limit=9223372036854775808", NULL, NULL, "{\"status\":\"error\",\"errorType\":\"bad_data\",\"error\":\"limit must be a number\"}", PROMQL_API_METADATA, 400},
+        {"metadata-underflow", "/api/v1/metadata?metric=fixture_provider&limit=-9223372036854775809", NULL, NULL, "{\"status\":\"error\",\"errorType\":\"bad_data\",\"error\":\"limit must be a number\"}", PROMQL_API_METADATA, 400},
+        {"metadata-invalid", "/api/v1/metadata?metric=fixture_provider&limit=1x", NULL, NULL, "{\"status\":\"error\",\"errorType\":\"bad_data\",\"error\":\"limit must be a number\"}", PROMQL_API_METADATA, 400},
+        {"metadata-space", "/api/v1/metadata?metric=fixture_provider&limit=+1", NULL, NULL, "{\"status\":\"error\",\"errorType\":\"bad_data\",\"error\":\"limit must be a number\"}", PROMQL_API_METADATA, 400},
+        {"metadata-nul", "/api/v1/metadata?metric=fixture_provider&limit=1%00", NULL, NULL, "{\"status\":\"error\",\"errorType\":\"bad_data\",\"error\":\"limit must be a number\"}", PROMQL_API_METADATA, 400},
+        {"metadata-per-invalid", "/api/v1/metadata?metric=fixture_provider&limit_per_metric=no", NULL, NULL, "{\"status\":\"error\",\"errorType\":\"bad_data\",\"error\":\"limit_per_metric must be a number\"}", PROMQL_API_METADATA, 400},
+        {"metadata-get-only", "/api/v1/metadata", NULL, NULL, "method not allowed", PROMQL_API_METADATA, 405, true, true},
+        {"metadata-cancel", "/api/v1/metadata", NULL, NULL, "\"errorType\":\"canceled\"", PROMQL_API_METADATA, 499, false, true, false, 0, false, true},
         {"scalar", "/api/v1/query?query=1%2B2&time=1700002804", NULL, NULL,
          "{\"status\":\"success\",\"data\":{\"resultType\":\"scalar\",\"result\":[1700002804,\"3\"]}}", PROMQL_API_QUERY, 200},
         {"live-gauge", "/api/v1/query?query=scalar(fixture_provider{netdata_dimension_id=\"gauge\"})&time=1700002804", NULL, NULL,

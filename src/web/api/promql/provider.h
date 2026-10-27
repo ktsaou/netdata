@@ -24,4 +24,14 @@ typedef struct {
 
 netdata_promql_provider_t promql_provider(PROMQL_PROVIDER_CONTEXT *context);
 
+typedef struct {
+    netdata_promql_bytes_t name, type, help, unit;
+} PROMQL_DESCRIPTION;
+
+typedef uint32_t (*PROMQL_DESCRIPTION_VISITOR)(void *, const PROMQL_DESCRIPTION *, PROMQL_READ_FRAME *,
+                                              netdata_promql_bytes_t *);
+uint32_t promql_metadata_describe(PROMQL_PROVIDER_CONTEXT *context, netdata_promql_bytes_t metric,
+                                  PROMQL_READ_FRAME *frame, PROMQL_DESCRIPTION_VISITOR visit, void *data,
+                                  netdata_promql_bytes_t *error);
+
 #endif

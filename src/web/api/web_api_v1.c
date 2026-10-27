@@ -50,6 +50,12 @@ static struct web_api_command api_commands_v1[] = {
         .access = HTTP_ACCESS_ANONYMOUS_DATA,
         .callback = api_v1_promql_series,
     },
+    {
+        .api = "metadata",
+        .acl = HTTP_ACL_METRICS,
+        .access = HTTP_ACCESS_ANONYMOUS_DATA,
+        .callback = api_v1_promql_metadata,
+    },
 #endif
 #if defined(ENABLE_API_V1)
     {

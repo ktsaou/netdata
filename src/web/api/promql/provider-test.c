@@ -12,6 +12,7 @@
 int promql_output_fixture(netdata_promql_engine_t *engine);
 int promql_request_fixture(netdata_promql_engine_t *engine);
 int promql_api_fixture(void);
+int promql_description_sort_fixture(netdata_promql_engine_t *engine);
 int promql_aclk_source_fixture(netdata_promql_engine_t *engine);
 int promql_rtc_frame_fixture(void);
 int promql_operations_fixture(netdata_promql_engine_t *engine);
@@ -587,6 +588,7 @@ int promql_live_provider_fixture(void) {
         errors += promql_output_fixture(engine);
         errors += promql_request_fixture(engine);
         errors += promql_api_fixture();
+        errors += promql_description_sort_fixture(engine);
         errors += mqtt_ng_source_unittest();
         errors += promql_aclk_source_fixture(engine);
         errors += promql_rtc_frame_fixture();

@@ -476,6 +476,97 @@ static PROMQL_SERIES *series_create(PROMQL_PHYSICAL *physical, bool alias,
     return series;
 }
 
+static uint32_t describe_instance(PROMQL_PROVIDER_CONTEXT *context, RRDINSTANCE *instance,
+                                   const char *name, const char *alias, netdata_promql_bytes_t wanted,
+                                   PROMQL_READ_FRAME *frame, PROMQL_DESCRIPTION_VISITOR visit, void *data,
+                                   netdata_promql_bytes_t *error) {
+    unsigned types = 0;
+    struct dictionary_foreach iterator;
+    uint32_t status = NETDATA_PROMQL_OK;
+    for(RRDMETRIC *metric = traverse_start(&iterator, instance->rrdmetrics); metric; metric = traverse_next(&iterator)) {
+        if(!promql_read_poll(frame)) { status = frame->interrupted; break; }
+        if(rrd_flag_is_deleted(metric)) continue;
+        types |= rrdmetric_algorithm_atomic_load(metric) == RRD_ALGORITHM_INCREMENTAL ? 1U : 2U;
+        if(types == 3) break;
+    }
+    dictionary_foreach_done(&iterator);
+    if(status != NETDATA_PROMQL_OK || !types) return status;
+
+    // Instance references keep the object alive, but its descriptive strings can be replaced.
+    rrdinstance_metadata_lock(instance);
+    STRING *help = string_dup(instance->title), *unit = string_dup(instance->units);
+    rrdinstance_metadata_unlock(instance);
+    PROMQL_DESCRIPTION description = {.help = promql_bytes(string2str(help)), .unit = promql_bytes(string2str(unit))};
+    netdata_promql_allocation_handle_t *view = NULL;
+    uint64_t bytes = (uint64_t)strlen(name) + 1;
+    bool measured = description.help.len < UINT64_MAX - bytes;
+    if(measured) bytes += description.help.len + 1;
+    measured = measured && description.unit.len < UINT64_MAX - bytes;
+    if(measured) bytes += description.unit.len + 1;
+    if(!measured || netdata_promql_allocation_acquire(frame->account, NETDATA_PROMQL_MEMORY_BORROWED_VIEW,
+           bytes, &view) != NETDATA_PROMQL_OK)
+        status = promql_provider_error(context, "cannot account metric description", error);
+    const char *names[] = {name, alias};
+    for(size_t i = 0; status == NETDATA_PROMQL_OK && i < 2; i++) {
+        if((i && !strcmp(name, alias)) || (wanted.len && !bytes_equal(wanted, names[i]))) continue;
+        description.name = promql_bytes(names[i]);
+        for(unsigned type = 1; status == NETDATA_PROMQL_OK && type <= 2; type <<= 1) {
+            if(!(types & type)) continue;
+            if(!promql_read_poll(frame)) { status = frame->interrupted; break; }
+            description.type = promql_bytes(type == 1 ? "counter" : "gauge");
+            status = visit(data, &description, frame, error);
+        }
+    }
+    if(view) netdata_promql_allocation_release(view);
+    string_freez(help); string_freez(unit);
+    return status;
+}
+
+uint32_t promql_metadata_describe(PROMQL_PROVIDER_CONTEXT *context, netdata_promql_bytes_t metric,
+                                  PROMQL_READ_FRAME *frame, PROMQL_DESCRIPTION_VISITOR visit, void *data,
+                                  netdata_promql_bytes_t *error) {
+    PROMQL_PROVIDER_QUERY query = {.context = context};
+    PROMQL_SELECTION *selection = promql_malloc(frame->account, NETDATA_PROMQL_MEMORY_PROVIDER_HELD, sizeof(*selection));
+    if(!selection) return promql_provider_error(context, "cannot account metadata traversal", error);
+    selection->query = &query;
+    char *alias = NULL;
+    uint32_t status;
+    while((status = selection_host(selection, frame, error)) == NETDATA_PROMQL_OK) {
+        RRDCONTEXT *rc = traverse_start(&selection->contexts, selection->host->host->rrdctx.contexts);
+        selection->contexts_started = true;
+        for(; rc; rc = traverse_next(&selection->contexts)) {
+            if(!promql_read_poll(frame)) { status = frame->interrupted; goto done; }
+            if(rrd_flag_is_deleted(rc)) continue;
+            const char *name = string2str(rc->id);
+            size_t bytes = strlen(name) + 1;
+            alias = promql_malloc(frame->account, NETDATA_PROMQL_MEMORY_PROVIDER_HELD, bytes);
+            if(!alias) { status = promql_provider_error(context, "cannot account metric alias", error); goto done; }
+            prometheus_rrdlabels_sanitize_name(alias, name, bytes);
+            if(!metric.len || bytes_equal(metric, name) || bytes_equal(metric, alias)) {
+                RRDINSTANCE *instance = traverse_start(&selection->instances, rc->rrdinstances);
+                selection->instances_started = true;
+                for(; instance; instance = traverse_next(&selection->instances)) {
+                    if(!promql_read_poll(frame)) { status = frame->interrupted; goto done; }
+                    if(rrd_flag_is_deleted(instance)) continue;
+                    status = describe_instance(context, instance, name, alias, metric, frame, visit, data, error);
+                    if(status != NETDATA_PROMQL_OK) goto done;
+                }
+                dictionary_foreach_done(&selection->instances);
+                selection->instances_started = false;
+            }
+            promql_free(alias); alias = NULL;
+        }
+        dictionary_foreach_done(&selection->contexts);
+        selection->contexts_started = false;
+        promql_host_release(&query, selection->host); selection->host = NULL;
+    }
+    if(status == NETDATA_PROMQL_END) status = NETDATA_PROMQL_OK;
+done:
+    promql_free(alias);
+    promql_selection_destroy(selection);
+    return status;
+}
+
 uint32_t promql_metadata_next(PROMQL_SELECTION *selection, PROMQL_READ_FRAME *frame,
                               netdata_promql_series_open_t *out, netdata_promql_bytes_t *error) {
     if(selection->query->empty) return NETDATA_PROMQL_END;

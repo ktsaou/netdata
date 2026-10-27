@@ -10,6 +10,24 @@
 extern LISTEN_SOCKETS api_sockets;
 int promql_host_readiness_fixture(void);
 
+static int seed_descriptions(RRDHOST *host, bool local) {
+    char long_title[9050];
+    memset(long_title, 'Z', 9000);
+    strcpy(long_title + 9000, " quote\" slash\\ line\n");
+    const char *titles[] = {"Common description", "Common description", local ? "Local description" : "Child description",
+        "Common description", long_title};
+    for(size_t i = 0; i < sizeof(titles) / sizeof(titles[0]); i++) {
+        char id[64];
+        snprintfz(id, sizeof(id) - 1, "description_%zu", i);
+        RRDSET *chart = rrdset_create(host, "promql_fixture", id, NULL, "fixture", "fixture.descriptions",
+            titles[i], i == 3 ? "MiB" : "KiB", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
+        if(!chart || !rrddim_add(chart, "value", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE)) return 1;
+    }
+    RRDSET *collision = rrdset_create(host, "promql_fixture", "description_collision", NULL, "fixture", "fixture_descriptions",
+        "Alias collision", "KiB", "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
+    return !collision || !rrddim_add(collision, "value", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+}
+
 static int seed_host(RRDHOST *host, collected_number gauge_value, collected_number increment) {
     if(!host || host->rrd_memory_mode != RRD_DB_MODE_DBENGINE || !host->db[0].si) return 1;
     RRDSET *chart = rrdset_create(host, "promql_fixture", "http", NULL, "fixture", "fixture.http",
@@ -40,7 +58,7 @@ static int seed_host(RRDHOST *host, collected_number gauge_value, collected_numb
     rrddim_finalize_collection_and_check_retention(counter);
     rrddim_finalize_collection_and_check_retention(gauge);
     // The real chart and contexts stay owned by the Agent until its normal shutdown.
-    return 0;
+    return seed_descriptions(host, gauge_value == 5);
 }
 
 int promql_http_fixture_seed(void) {

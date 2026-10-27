@@ -3,7 +3,8 @@
 #include "request.h"
 
 static const char *parameter_names[PROMQL_PARAM_COUNT] = {
-    "query", "time", "timeout", "lookback_delta", "limit", "stats", "start", "end", "step", "match[]", "options"
+    "query", "time", "timeout", "lookback_delta", "limit", "stats", "start", "end", "step", "match[]", "options",
+    "metric", "limit_per_metric"
 };
 
 int promql_hex_digit(uint8_t byte) {

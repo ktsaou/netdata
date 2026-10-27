@@ -3541,3 +3541,18 @@ while actual backing errors fail. Exact scope, exclusions, error controls and me
 - **Fallback:** absent and filtered results finish naturally. Unsupported wrappers, pending annotations, incompatible
   descriptors and existing native/phase restrictions retain their established paths. Preparation never supplies fresh
   final values.
+
+## Context-owned metric descriptions — decision 72.A
+
+- **Mapping:** the Agent's GET `/api/v1/metadata` endpoint reports chart-instance titles, unchanged units and the
+  query adapter's incremental-counter/other-gauge classification. Preserve distinct `(type, help, unit)` tuples
+  across instances and hosts under both exact context names and underscore aliases.
+- **Ownership:** use existing contexts references and immutable STRING references acquired under the instance
+  lock. Traverse the catalogue, including archived and excluding deleted entries, without reading chart labels,
+  SQL label rows, retained spans or raw samples. A description is not a retained-data availability guarantee.
+- **Response:** reuse the C adapter's accounted deduplication index and spill-backed body. Sort unique complete
+  keys with a fallible C index heapsort because this path has ordinary operation control, not an engine callback.
+  Existing discovery keeps its pinned Rust callback sorter. No second catalogue, persistent cache or ABI change.
+- **Compatibility:** metadata's signed limits and exact `metric` filter follow the pinned upstream endpoint;
+  deterministic byte order resolves unspecified subset/order boundaries. Existing series/query limit semantics
+  remain unchanged. Describe counters/gauges only; histogram identification and projection remain a separate decision.

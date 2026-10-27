@@ -16,6 +16,7 @@ For branch installation and example queries over collected Linux data, see
 | `/api/v1/labels` | GET, form POST | Label names |
 | `/api/v1/label/{name}/values` | GET | Values of one label |
 | `/api/v1/series` | GET, form POST | Series label sets |
+| `/api/v1/metadata` | GET | Metric descriptions, types and units |
 
 These Prometheus-shaped endpoints use v1 paths. Other new Netdata API integrations should use v3.
 They inherit the existing metrics access rules and anonymous-data permission, including any configured bearer
@@ -61,11 +62,14 @@ historical labels for every sample; a fleet query does not promise an atomic met
 | `start`, `end`, `step` | query_range | Required inclusive evaluation interval and positive step |
 | `timeout` | query, query_range | Explicit execution deadline; an earlier caller deadline still wins |
 | `lookback_delta` | query, query_range | Positive lookback override; default is 5 minutes |
-| `limit` | All five | Maximum returned series or discovery entries; omitted or zero means no output limit |
+| `limit` | query, query_range, labels, label values, series | Maximum returned series or discovery entries; omitted or zero means no output limit |
 | `stats` | query, query_range | Optional query statistics; `all` requests the full statistics object |
 | `options=absolute` | query, query_range | Normalize legacy presentation-negated counter inputs before reconstruction |
 | `match[]` | Discovery | Repeated series selectors; at least one is required by series |
 | `start`, `end` | Discovery | Optional retained-time overlap filter |
+| `metric` | metadata | Exact metric name or alias; omitted or empty selects all names |
+| `limit` | metadata | Maximum metric names; zero returns none, omitted or negative means unlimited |
+| `limit_per_metric` | metadata | Maximum distinct descriptions per name; omitted or nonpositive means unlimited |
 
 Timestamps accept Unix seconds or RFC3339. Durations accept seconds or PromQL duration syntax. A range query
 requires a scalar or instant-vector expression. Discovery selectors must contain at least one matcher that does
@@ -78,6 +82,28 @@ retained DBengine data overlapping the requested time range. Both name aliases a
 engine, and the usual union, sorting and limit rules apply. This path does not load or validate unrelated chart
 labels, so an unrelated archived-label loading failure does not prevent listing a name. A selector that filters
 other labels uses full series metadata. There is no separate metadata catalogue or persistent discovery cache.
+
+## Metric descriptions
+
+`/api/v1/metadata` returns a JSON object keyed by metric name. Each value is an array of distinct objects containing
+`type`, `help` and `unit`. Help is the chart instance's title; units retain their Netdata spelling and magnitude.
+Incremental dimensions contribute `counter`, and other dimensions contribute `gauge`, matching the query adapter.
+An instance containing both kinds contributes both descriptions. Heatmap presentation does not imply a histogram type.
+
+Both exact context names and underscore aliases are exposed. Identical descriptions across dimensions, instances and
+hosts are deduplicated; differing titles, units or types remain separate. Alias collisions combine the descriptions
+under that name. Host/node prefixes restrict the catalogue using the same scope as the other PromQL endpoints.
+
+This endpoint reads the existing contexts catalogue, including archived entries and excluding deleted entries.
+It does not read metric samples, load chart labels, or check retention. A description can therefore exist even when a
+query returns no data. `match[]`, time bounds and expression parameters do not filter this endpoint. Current descriptions
+are not historical metadata snapshots. Unavailable initial host metadata is an error, not an empty catalogue.
+
+Metadata limits accept signed 64-bit decimal integers and follow the rules in the parameter table, which differ from
+the series/query limits. Names and descriptions use deterministic byte order where Prometheus leaves order unspecified;
+limited responses select that ordered subset without truncation warnings. Response strings use bounded buffers and
+temporary backing, while the per-request deduplication index grows with distinct descriptions. No persistent catalogue
+or cache is added. Cancellation, caller deadlines, accounting and normal response compression remain available.
 
 ## Results and errors
 
