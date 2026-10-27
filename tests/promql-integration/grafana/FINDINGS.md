@@ -11,9 +11,40 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
-## Follow-up: zero-limit metadata preparation — 2026-10-27
+## Follow-up: buffered metadata key comparisons — 2026-10-27
 
-Runtime `049817dc89` is installed. A zero name limit now discards descriptions before building intermediate
+Runtime `58f4be2276` is installed. Stored key comparisons reuse the existing 8 KiB scratch window across fields,
+reducing small backing reads during duplicate discovery. Contexts ownership, lexical output, native units and
+paged storage are unchanged. No extra heap buffer or persistent metadata catalogue is added.
+[Controlled qualification](../metadata-buffered-keys-qualification.json) covers both builds, key boundaries,
+allocation cleanup, cancellation and 142 HTTP checks. Independent implementation and evidence reviews passed.
+
+[Live measurements](metadata-buffered-keys-live.json), five serial repetitions after warmup:
+
+| Request | Before median | After median |
+|---|---:|---:|
+| Whole catalogue | 2.484 s | 0.755 s |
+| Unfiltered `limit=1` | 2.441 s | 0.726 s |
+| Unfiltered `limit=0` | 0.103 s | 0.104 s |
+| Exact `system_cpu` metadata | 6.98 ms | 7.36 ms |
+
+Full-catalogue and one-name medians improve about 70%. Four concurrent full-catalogue requests finish as a batch
+in 1.05 seconds versus 2.76 seconds before. Serial response digest sets match for every case, including all
+4,964 names and 4,972 descriptions. Caches and live data are uncontrolled; these measurements do not establish
+cold-cache performance or universal throughput. Positive limits still traverse and sort the complete catalogue.
+
+Installation completed in 209.53 seconds with 3 GiB peak build memory and both configuration comparisons passing.
+The deployment observer initially stopped after systemd collected the completed transient unit; retained journal
+and installed binary checks establish success. Read-only measurements resumed without another install or restart.
+Netdata and Grafana remain active with approximately 50 GiB free. Grafana CPU history returns 18 frames in
+0.51 seconds, all 18 reporting CPU hosts advance, and the process/binary remain unchanged after checks.
+
+This metadata-only step does not repeat the full 360-query workload. Long-history and concurrent expression latency
+remain open; histogram representation remains under discussion and historical boundary repair is excluded by 71.
+
+## Earlier follow-up: zero-limit metadata preparation — 2026-10-27
+
+Runtime `049817dc89` was installed at this checkpoint. A zero name limit now discards descriptions before building intermediate
 records/indexes or sorting. It retains contexts traversal, parameter checks, unavailable-host errors and cancellation.
 [Controlled qualification](../metadata-zero-limit-qualification.json) covers internal and normal builds plus 142 HTTP
 checks. [Live evidence](metadata-zero-limit-live.json) records five serial repetitions per case, after one warmup:
@@ -38,7 +69,7 @@ representation remains under discussion, with historical boundary repair exclude
 
 ## Earlier follow-up: metric descriptions through Netdata and Grafana — 2026-10-27
 
-Runtime `c46a8fbe6a` is installed. GET `/api/v1/metadata` now returns context-owned instance titles, native units
+Runtime `c46a8fbe6a` was installed at this checkpoint. GET `/api/v1/metadata` now returns context-owned instance titles, native units
 and counter/gauge types under exact and underscore names. Both direct and Grafana-proxy routes previously returned
 404. [Live evidence](metadata-descriptions-live.json) records the implemented endpoint and its remaining cost:
 
