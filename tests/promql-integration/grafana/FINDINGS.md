@@ -40,7 +40,7 @@ shows lower polling cost; the [focused live results](control-poll-live.json) do 
 Two fixed-window fleet Count expressions were run serially twice before and after deployment. Grouped Count took
 20.01/19.18 seconds before and 21.05/17.88 seconds after; both successful results match their baseline digests.
 The disappearance expression still timed out at 25 seconds in every run. These are four requests per revision,
-not a new full-suite replay, and live caches/data are uncontrolled. The latest full 360-request results remain below.
+not a new full-suite replay, and live caches/data are uncontrolled. The preceding full replay is recorded below.
 
 Grafana application share returned 79 frames in 1.78 seconds; all 18 reporting CPU hosts advanced. Both services
 are active, both configuration comparisons passed, retained data was preserved and approximately 53 GiB remains
