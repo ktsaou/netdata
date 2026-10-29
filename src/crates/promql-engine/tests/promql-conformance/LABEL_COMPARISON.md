@@ -40,7 +40,7 @@ Representative release-profile cases use 64 series and an explicit deadline:
 
 | Operation | Label value bytes | Baseline median ms | Candidate median ms | Median paired ratio |
 | --- | ---: | ---: | ---: | ---: |
-| Set intersection | 16 | 411.37 | 392.95 | 0.957 |
+| Set intersection | 16 | 411.37 | 392.95 | 0.956 |
 | Arithmetic join | 16 | 378.27 | 345.01 | 0.913 |
 | Set intersection | 1,025 | 449.24 | 430.43 | 0.942 |
 | Arithmetic join | 1,025 | 410.39 | 390.88 | 0.941 |
