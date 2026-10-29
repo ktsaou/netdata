@@ -1,0 +1,458 @@
+{
+  "schema": 1,
+  "date": "2026-10-29",
+  "engine_commit": "2c4994174538d23d0a1b023373de2d371a7c44a1",
+  "previous_engine_commit": "02f23438634b7989b271fbe946cab89b24e51188",
+  "installed_binary_sha256": "f6482899f496e08aab1be41656c14a3f09bf5cc16cb5dd3dca41caf79d1ededf",
+  "deployment": {
+    "unit": "promql-deploy-2c49941745",
+    "invocation": "268bf4316ade4f0da407cd769bc5a81c",
+    "installer_exit": 0,
+    "protected_configuration_comparisons": "passed",
+    "smoke_query": "passed"
+  },
+  "captures": {
+    "before": {
+      "file": "label-comparison-before-measurements.jsonl.gz",
+      "sha256": "6570f398aa56e9f0badaff2054ef8a0e78edaf750c1dce8e8304e3e8ba64676f",
+      "uncompressed_sha256": "81644ec10e861ef3329fe278944432ca7f6e19c2354e955efda656e923f53ebe",
+      "records": 380,
+      "queries": 360,
+      "complete_response_bodies_retained_privately": true,
+      "response_body_compressed_bytes": 1635979
+    },
+    "after": {
+      "file": "label-comparison-after-measurements.jsonl.gz",
+      "sha256": "41026042472d86210865fb7b87bc85503c564e8737901a4f76a557792af65f9a",
+      "uncompressed_sha256": "82a63f1458cbd84d2cfa7277f51a1ae2e6e0d857d2170a847ee6ceae9ee4e53b",
+      "records": 380,
+      "queries": 360,
+      "complete_response_bodies_retained_privately": true,
+      "response_body_compressed_bytes": 1636092
+    }
+  },
+  "comparison": {
+    "file": "label-comparison-comparison.json.gz",
+    "sha256": "5145d2d887cb5f1a2250d6779c4ab5cdc77c621b08bf38f0221d989b2fc9da5f",
+    "uncompressed_sha256": "1b14ae23da77537a1e083564d5822eaeddb32157d4adfe915e35711d0ed034d9"
+  },
+  "before_summary": [
+    {
+      "cohort": "fleet4",
+      "requests": 136,
+      "outcomes": {
+        "empty": 9,
+        "error": 2,
+        "nonempty": 125
+      },
+      "seconds": 173.8903960530297
+    },
+    {
+      "cohort": "instant-fleet",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 124,
+        "empty": 12
+      },
+      "seconds": 128.38977989304112
+    },
+    {
+      "cohort": "focus-host",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 10,
+        "empty": 6
+      },
+      "seconds": 29.812352882989217
+    },
+    {
+      "cohort": "focus-group",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 12,
+        "empty": 4
+      },
+      "seconds": 34.95235946204048
+    },
+    {
+      "cohort": "focus-fleet",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 53.95948153198697
+    },
+    {
+      "cohort": "focus-fleet8",
+      "requests": 16,
+      "outcomes": {
+        "empty": 2,
+        "nonempty": 14
+      },
+      "seconds": 30.1716980659985
+    },
+    {
+      "cohort": "focus-6h",
+      "requests": 8,
+      "outcomes": {
+        "error": 2,
+        "nonempty": 4,
+        "empty": 2
+      },
+      "seconds": 77.2414644069504
+    },
+    {
+      "cohort": "focus-24h",
+      "requests": 8,
+      "outcomes": {
+        "error": 2,
+        "nonempty": 5,
+        "empty": 1
+      },
+      "seconds": 99.91086903196992
+    },
+    {
+      "cohort": "focus-7d",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 2,
+        "error": 6
+      },
+      "seconds": 169.24538611597382
+    }
+  ],
+  "after_summary": [
+    {
+      "cohort": "fleet4",
+      "requests": 136,
+      "outcomes": {
+        "error": 2,
+        "nonempty": 125,
+        "empty": 9
+      },
+      "seconds": 178.8956620770041
+    },
+    {
+      "cohort": "instant-fleet",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 124,
+        "empty": 12
+      },
+      "seconds": 132.3711964340182
+    },
+    {
+      "cohort": "focus-host",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 10,
+        "empty": 6
+      },
+      "seconds": 30.007147553027608
+    },
+    {
+      "cohort": "focus-group",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 12,
+        "empty": 4
+      },
+      "seconds": 33.17942304397002
+    },
+    {
+      "cohort": "focus-fleet",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 53.6081610720139
+    },
+    {
+      "cohort": "focus-fleet8",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 24.930597989994567
+    },
+    {
+      "cohort": "focus-6h",
+      "requests": 8,
+      "outcomes": {
+        "error": 2,
+        "nonempty": 4,
+        "empty": 2
+      },
+      "seconds": 74.890063319006
+    },
+    {
+      "cohort": "focus-24h",
+      "requests": 8,
+      "outcomes": {
+        "error": 2,
+        "nonempty": 5,
+        "empty": 1
+      },
+      "seconds": 95.09101315797307
+    },
+    {
+      "cohort": "focus-7d",
+      "requests": 8,
+      "outcomes": {
+        "error": 6,
+        "nonempty": 2
+      },
+      "seconds": 168.39009021996753
+    }
+  ],
+  "successful_pairs": 348,
+  "ordered_equal": 271,
+  "unordered_equal": 345,
+  "diagnostics_equal": 348,
+  "same_series_point_counts": 348,
+  "transitions": [],
+  "remaining": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.079975901986472
+    },
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/9/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.054745389032178
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.018556584022008
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.027392944029998
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.02319434902165
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.01574924500892
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.00725089898333
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.023486164049245
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-bandwidth/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.00486208696384
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.005596328992397
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.008970342983957
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.017975191003643
+    }
+  ],
+  "average_order_explanation": {
+    "checks": [
+      {
+        "phase": "before",
+        "query": "applications",
+        "exact_matched_points": 6087,
+        "inner_rows": 736,
+        "observed_host_order_sha256": "8c15c524d7c7ec787043323f8d72278cabcc3bdf0feaf80703f03a3a873d2b0e"
+      },
+      {
+        "phase": "before",
+        "query": "bandwidth",
+        "exact_matched_points": 31,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "8c15c524d7c7ec787043323f8d72278cabcc3bdf0feaf80703f03a3a873d2b0e"
+      },
+      {
+        "phase": "after",
+        "query": "applications",
+        "exact_matched_points": 6087,
+        "inner_rows": 736,
+        "observed_host_order_sha256": "a84177bcc187be9740239276b59eeb69340bd9ed03648ad06b62aa7f133bbddd"
+      },
+      {
+        "phase": "after",
+        "query": "bandwidth",
+        "exact_matched_points": 31,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "a84177bcc187be9740239276b59eeb69340bd9ed03648ad06b62aa7f133bbddd"
+      },
+      {
+        "phase": "before",
+        "query": "instant_cpu",
+        "exact_matched_points": 1,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "8c15c524d7c7ec787043323f8d72278cabcc3bdf0feaf80703f03a3a873d2b0e"
+      },
+      {
+        "phase": "after",
+        "query": "instant_cpu",
+        "exact_matched_points": 1,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "a84177bcc187be9740239276b59eeb69340bd9ed03648ad06b62aa7f133bbddd"
+      }
+    ],
+    "differences": [
+      {
+        "query": "applications",
+        "points": 6087,
+        "changed_points": 31,
+        "max_ulp_difference": 2
+      },
+      {
+        "query": "bandwidth",
+        "points": 31,
+        "changed_points": 1,
+        "max_ulp_difference": 1
+      },
+      {
+        "query": "instant_cpu",
+        "points": 1,
+        "changed_points": 1,
+        "max_ulp_difference": 1
+      }
+    ],
+    "inner_values_identical": true,
+    "observed_host_order_changed": true,
+    "exact_reproduction": true,
+    "scope": "Finite captured values only; host order is observed in separate same-cohort queries, not instrumented inside the nested averages.",
+    "interpretation": "The observed host order exactly explains the differences. Restart-mediated metadata loading is an inferred cause of that order change.",
+    "runner_sha256": "79f7d5b59b23ca1338800d966ba144c89d581f519a55ef7537131f56adfdf75e",
+    "arithmetic_sources": {
+      "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+      "src/crates/promql-engine/src/aggregation.rs": "2d5b6cc5381eecc4c717b52b24adf4906fb21571c073e443388cbb9ddb859bb6"
+    }
+  },
+  "successful_pair_median_elapsed_ratio": 0.9897311182686763,
+  "same_sample_count_pairs": 335,
+  "memory_acquisition_comparison": {
+    "workspace": {
+      "acquired_before": 36617689730,
+      "acquired_after": 36671024186,
+      "queries_with_lower_acquired": 19,
+      "queries_with_higher_acquired": 34,
+      "queries_with_lower_peak": 127,
+      "queries_with_higher_peak": 40
+    },
+    "accounting": {
+      "acquired_before": 17569998848,
+      "acquired_after": 17578299392,
+      "queries_with_lower_acquired": 81,
+      "queries_with_higher_acquired": 138,
+      "queries_with_lower_peak": 13,
+      "queries_with_higher_peak": 36
+    },
+    "providerHeld": {
+      "acquired_before": 46009531276,
+      "acquired_after": 46008711174,
+      "queries_with_lower_acquired": 129,
+      "queries_with_higher_acquired": 90,
+      "queries_with_lower_peak": 0,
+      "queries_with_higher_peak": 0
+    },
+    "borrowedView": {
+      "acquired_before": 32521711033,
+      "acquired_after": 32662059675,
+      "queries_with_lower_acquired": 53,
+      "queries_with_higher_acquired": 24,
+      "queries_with_lower_peak": 3,
+      "queries_with_higher_peak": 2
+    }
+  },
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 4.1759158840286545,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 13.187768648029305,
+    "after_seconds": 1.692705225024838
+  },
+  "artifacts": {
+    ".tmp/practical-replay-j32eeh4e/label45-comparison.json": "1b14ae23da77537a1e083564d5822eaeddb32157d4adfe915e35711d0ed034d9",
+    ".tmp/practical-replay-j32eeh4e/label45-average-order-explanation-v2.json": "f202255b740e96efd074e2ec6346818513889ba601ed8f9a9bcdbc56b255a0c7",
+    ".tmp/practical-replay-j32eeh4e/label45-deployment.json": "0c7303f4370260a1652acb21d4137d058f927f4f7931ebf1cf9e00137e4d499d",
+    ".tmp/practical-replay-j32eeh4e/label45before-live-receipt.json": "c0231fd18d2cb1cdfeb13082c5017a2eaa3dbdd8733cf750112f5b30508000a8",
+    ".tmp/practical-replay-j32eeh4e/label45before-runtime.json": "52f1c3dbbe833e59222358b51f5f231bc076c3ac552b91d9b538ca8dfba9471f",
+    ".tmp/practical-replay-j32eeh4e/label45after-live-receipt.json": "79d9e5b96f479505e5c56511ee9d374418d1403c16a33694009ce968a162db2b",
+    ".tmp/practical-replay-j32eeh4e/label45after-runtime.json": "dc7ba7ff0d3050f0ba7287958513438d495cefa7b12933910b46749d22849533",
+    ".tmp/practical-replay-j32eeh4e/deploy_label45.py": "cbcf5da96553ec128b61ed05290e22685f23550638013c2931ed7b416cae6ba3",
+    ".tmp/practical-replay-j32eeh4e/compare_label45.py": "f5a4e90dd5ec91e89d5ec442055f2a2217b24566882fa4df67ce168cce9857af",
+    ".tmp/practical-replay-j32eeh4e/explain_label45_averages_v2.py": "79f7d5b59b23ca1338800d966ba144c89d581f519a55ef7537131f56adfdf75e",
+    ".tmp/practical-replay-j32eeh4e/publish_label45_live.py": "c7a0ac3f224ed44ee79e428fae3467d49460eb30bb77a90f74b9ea8696aa1593",
+    ".tmp/practical-replay-j32eeh4e/adapter_live_responses.py": "cb915148290947019634593a36141b85d920d77f6b3b5b4fafe4390075148a43",
+    ".tmp/practical-replay-j32eeh4e/live_with_responses.py": "1d9ea602b36fd9768e007467cfa136bfab51332720ae48d2c5f8ab66e51c37da",
+    ".tmp/practical-replay-j32eeh4e/label45-deployment.stdout": "9f19b5cc296c54b726db2639ada516204c912942627101c7e15129aa0af05263",
+    ".tmp/practical-replay-j32eeh4e/label45-deployment.stderr": "bcef6015d3787b2e7b64a08e08c00ca94b1757dc4ccb06fca71d2e9d64db44c2",
+    ".tmp/practical-replay-j32eeh4e/label45-deployment-journal.stdout": "4644b57b49ced70890b296cbb833ff01292fe6a433c35a2919e069261a2b6cd0"
+  },
+  "interpretation": [
+    "Duplicate initial byte-comparison checks are removed. This live replay does not establish an overall throughput improvement.",
+    "Both versions have the same twelve timeouts: two concurrent fleet panels and ten long-history requests. No outcome transition occurred.",
+    "All successful pairs preserve labels/timestamps/counts and diagnostics. The33 differing numeric points are exactly reproduced using unchanged inner values and the observed host order.",
+    "Provider order is preserved by decision9 outside designated unspecified intermediate boundaries. Host insertion/loading after restart is an inferred source of the observed ordering change.",
+    "Same expressions, scopes, windows, steps and deadlines; live storage, cache residency and background work are not immutable.",
+    "Acquired memory is cumulative allocation or borrowed exposure traffic, not simultaneous RAM. Observed costs are mixed across categories; timeout counters describe partial execution.",
+    "Long-history and concurrent-query failures remain open. Histogram73 remains unapproved; historical bucket-boundary repair is excluded by71."
+  ]
+}

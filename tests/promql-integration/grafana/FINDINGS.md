@@ -11,9 +11,31 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
+## Follow-up: label-comparison control checks — 2026-10-29
+
+Runtime `2c49941745` is installed. Shared byte comparisons now avoid an immediate duplicate entry check while
+retaining entry and subsequent-chunk interruption. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/LABEL_COMPARISON.md)
+finds 4–9% improvements in representative release-profile joins, mixed results elsewhere, and no tracked query-memory
+increase. Both profiles pass 1,112 unit tests; all 672 measured C executions preserve outputs and resource counters.
+
+The [live comparison](label-comparison-live.json) has 348 successes and the same 12 timeouts in each 360-query run.
+Two concurrent fleet panels and ten long-history requests time out. Fleet batch time changes from 173.89 to 178.90
+seconds; the median successful-pair ratio is 0.990. This does not establish an overall live speedup. The unchanged
+engine already had these 12 failures in the fresh baseline, compared with nine in the earlier capture.
+
+All successful labels, timestamps and counts agree; all 360 warning/info arrays agree. Unordered results match in
+345 of 348 successful pairs. The three averages differ at 33 points by at most two floating-point units in the last
+place. Unchanged inner values in each run's independently observed host order reproduce every point exactly,
+including the additional instant fleet CPU average. The instant expression does not enter the multistep ordering
+boundary. As before, restart-mediated metadata loading is an inferred explanation for the observed order change.
+
+Installation and configuration comparisons pass. Grafana returns 79 frames, and all 18 common observed CPU hosts
+advance their reception timestamps. Both services are active with 41 GiB free at deployment verification.
+The long-history/concurrency findings and histogram design decision remain open.
+
 ## Follow-up: grouped Count set discovery — 2026-10-28
 
-Runtime `02f2343863` is installed. Grouped Count set operations now reuse completed membership discovery while
+Runtime `02f2343863` was installed for this comparison. Grouped Count set operations now reuse completed membership discovery while
 preserving fresh selected values and final validation. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/COUNT_SET_DISCOVERY.md)
 covers ordinary selectors, count windows, native inputs, wrapper clocks and actual C/HTTP callers.
 The standalone C-library source attribution was corrected on October 29; all eight consumers were rerun after
