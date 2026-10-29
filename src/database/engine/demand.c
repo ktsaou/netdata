@@ -53,17 +53,28 @@ static bool journal_metric(struct rrdengine_journalfile *journal, const struct j
     if(header->magic != JOURVAL_V2_MAGIC || header->metric_offset > size ||
        header->metric_count > (size - header->metric_offset) / sizeof(*metric))
         return false;
-    uint32_t lo = 0, hi = header->metric_count;
-    while(lo < hi) {
-        uint32_t mid = lo + (hi - lo) / 2;
-        if(!journal_copy(journal, header->metric_offset + (size_t)mid * sizeof(*metric), metric, sizeof(*metric)))
-            return false;
-        int comparison = memcmp(metric->uuid, uuid, sizeof(nd_uuid_t));
-        if(comparison < 0) lo = mid + 1;
-        else if(comparison > 0) hi = mid;
-        else { *found = true; break; }
+    if(!header->metric_count)
+        return true;
+
+    volatile bool complete = false;
+    {
+        // The acquired mapping and checked directory bounds cover every search probe.
+        PROTECTED_ACCESS_SETUP(journal->mmap.data, journal->mmap.size, "dbengine journal", "read");
+        if(no_signal_received) {
+            uint32_t lo = 0, hi = header->metric_count;
+            while(lo < hi) {
+                uint32_t mid = lo + (hi - lo) / 2;
+                memcpy(metric, (uint8_t *)journal->mmap.data + header->metric_offset + (size_t)mid * sizeof(*metric),
+                       sizeof(*metric));
+                int comparison = memcmp(metric->uuid, uuid, sizeof(nd_uuid_t));
+                if(comparison < 0) lo = mid + 1;
+                else if(comparison > 0) hi = mid;
+                else { *found = true; break; }
+            }
+            complete = true;
+        }
     }
-    return true;
+    return complete;
 }
 
 static bool journal_directory_verified(struct rrdengine_journalfile *journal,

@@ -274,7 +274,11 @@ The [checkpoint qualification](checkpoint-qualification.json) binds the source, 
 receipts and actual module execution on AMD64/ARM64/ARM32. Existing Rust expression qualification retains its
 unchanged source/binary identity; these C-only changes do not reattribute or rerun the full expression corpus.
 
-The subsequent [recent counter prefix optimization](RECENT_COUNTER_PREFIX.md) reuses one successful batch's
+The [journal metric lookup optimization](JOURNAL_METRIC_LOOKUP.md) avoids repeating mapped-file access
+setup for each probe in a metric-directory search. Its isolated fixture exercises actual lookup and
+mapping-error recovery, with separate complete-Agent qualification and lookup timing evidence.
+
+The [recent counter prefix optimization](RECENT_COUNTER_PREFIX.md) reuses one successful batch's
 pre-sample counter state across cursors. Its separate measurements record the added fixed memory, native/legacy
 moving-window costs, gauge controls and expanded failure checks. The older peaks above retain their original
 source attribution.
