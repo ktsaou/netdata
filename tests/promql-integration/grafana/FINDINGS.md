@@ -11,9 +11,38 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
+## Follow-up: recent counter prefixes — 2026-10-29
+
+Runtime `2fd6756b6e` is installed. The C provider keeps one recent pre-sample counter value in the existing
+physical metric's query state. Subsequent cursors can reuse it while retaining the indexed checkpoint lookup,
+query origin, reset/gap behavior and successful-only publication. No raw history or new metadata owner is retained.
+The [controlled qualification](../RECENT_COUNTER_PREFIX.md) reduces 32,895 reconstruction folds to 764 in a
+moving-window fixture. Median paired counter times improve 32–57%; gauge timings are mixed and broadly unchanged.
+The AMD64 fixture's accounted provider peak increases by 24 bytes for counters and eight bytes for gauges.
+
+The [live comparison](recent-counter-prefix-live.json) records **349/360 successes before and 350/360 after**.
+A concurrent availability panel completes after its preceding timeout; this finite comparison does not establish
+why it recovered. Nine long-history requests and the concurrent fixed-top-ten application disk-I/O panel still
+time out. Fleet batch time changes from 184.66 to 181.00 seconds, and the median successful-pair elapsed ratio
+is 0.998. **No overall live latency improvement is established.**
+
+Counter reconstruction falls in real queries without a corresponding timing gain. For example, six-hour fleet
+bandwidth drops from 18,954,432 to 11,112,096 folds, while elapsed time changes from 5.159 to 5.438 seconds.
+These counters measure provider processing, not physical disk reads. Timeout counters represent partial execution.
+
+All 349 successful pairs retain labels, timestamps and counts; all 360 diagnostic arrays match. Unordered results
+match in 348 pairs. One application average differs at 15 points by at most two floating-point units in the last
+place. Unchanged inner values evaluated in each run's observed host order reproduce every point exactly.
+Restart-driven metadata loading remains an inferred explanation for the changed order.
+
+Normal/internal storage checks, 154 HTTP checks and independent source/evidence reviews pass. Installation and
+persistent configuration checks pass; Grafana returns 79 frames, and all 18 common CPU hosts advance. Both services
+are active with 40 GiB free at deployment verification. Long-history and concurrent latency remain open, as does
+the cumulative-histogram projection discussion.
+
 ## Follow-up: matrix acquisition page reuse — 2026-10-29
 
-Runtime `0e23e23dd6` is installed. Matrix acquisition now advances within its currently borrowed page instead of
+Runtime `0e23e23dd6` was installed for this comparison. Matrix acquisition now advances within its currently borrowed page instead of
 repeating same-page provider seeks. Physical initial/final seeks, complete-tail validation and native decoder
 phases remain. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/MATRIX_PAGE_REUSE.md)
 passes 1,114 units per profile, 4,470 retained-original comparisons and 4,032 C queries. A nested replay case
@@ -34,7 +63,7 @@ restart remains an inferred cause of the ordering change.
 Installation and persistent configuration checks pass. Grafana returns 79 frames; all 18 common observed CPU
 hosts advance. Both services are active with 40 GiB free at deployment verification. Counter reconstruction
 across separate cursors, long-history/concurrent latency and histogram exposure remain open. The next counter
-checkpoint experiment is local work and is not included in this deployment.
+checkpoint experiment was local work at this deployment; its subsequent qualification appears above.
 
 ## Follow-up: label-comparison control checks — 2026-10-29
 
