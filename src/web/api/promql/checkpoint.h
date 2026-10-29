@@ -24,6 +24,8 @@ bool promql_checkpoints_find(const PROMQL_CHECKPOINTS *owner, PROMQL_CHECKPOINT_
                              int64_t wanted, PROMQL_CHECKPOINT *value, bool *found,
                              PROMQL_READ_FRAME *frame, int *error);
 const PROMQL_CHECKPOINT *promql_checkpoints_last(const PROMQL_CHECKPOINTS *owner);
+const PROMQL_CHECKPOINT *promql_checkpoints_recent(const PROMQL_CHECKPOINTS *owner);
+void promql_checkpoints_remember(PROMQL_CHECKPOINTS *owner, PROMQL_CHECKPOINT value);
 void promql_checkpoints_free(PROMQL_CHECKPOINTS *owner);
 void promql_checkpoint_backing_close(PROMQL_CHECKPOINT_BACKING *backing);
 

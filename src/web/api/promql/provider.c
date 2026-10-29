@@ -11,7 +11,7 @@ typedef struct {
     RRDENG_READER *reader;
     RRDENG_DEMAND_PAGE page;
     uint32_t reader_span;
-    time_t next, wanted, last;
+    time_t next, wanted, last, recent_start;
     double counter;
     bool projection_started, ended;
     uint32_t error_status;
@@ -109,8 +109,10 @@ static uint32_t cursor_restore(PROMQL_CURSOR *cursor, int64_t wanted, PROMQL_REA
     bool ended = cursor->ended;
     if(physical->query->empty || wanted > cursor->last) { cursor->ended = true; return NETDATA_PROMQL_OK; }
     const PROMQL_CHECKPOINT *last = promql_checkpoints_last(physical->checkpoints);
+    const PROMQL_CHECKPOINT *recent = promql_checkpoints_recent(physical->checkpoints);
+    bool recent_ahead = recent && recent->next <= wanted && recent->next > cursor->next;
     if(!ended && cursor->projection_started && wanted >= cursor->next &&
-       (wanted == cursor->next || !last || last->next <= cursor->next)) {
+       !recent_ahead && (wanted == cursor->next || !last || last->next <= cursor->next)) {
         cursor->wanted = (time_t)wanted;
         if(!physical->incremental) cursor->next = cursor->wanted;
         return NETDATA_PROMQL_OK;
@@ -123,6 +125,9 @@ static uint32_t cursor_restore(PROMQL_CURSOR *cursor, int64_t wanted, PROMQL_REA
         cursor->error_status = temporary_failure(physical->query->context, frame, cause, error);
         return cursor->error_status;
     }
+    bool use_recent = found && recent && recent->next <= wanted && recent->next > checkpoint.next;
+    if(use_recent)
+        checkpoint = *recent;
     cursor->wanted = (time_t)wanted;
     cursor->ended = false;
     if(found && (ended || !cursor->projection_started || cursor->wanted < cursor->next ||
@@ -130,8 +135,10 @@ static uint32_t cursor_restore(PROMQL_CURSOR *cursor, int64_t wanted, PROMQL_REA
         cursor->next = (time_t)checkpoint.next;
         cursor->counter = netdata_promql_double_from_bits(checkpoint.counter_bits);
         cursor->projection_started = true;
+        cursor->recent_start = use_recent ? (time_t)checkpoint.next : 0;
     }
     else if(ended || !cursor->projection_started || cursor->wanted < cursor->next) {
+        cursor->recent_start = 0;
         if(physical->checkpoints) {
             cursor->next = (time_t)checkpoint.next;
             cursor->counter = netdata_promql_double_from_bits(checkpoint.counter_bits);
@@ -215,6 +222,11 @@ static uint32_t reader_error(PROMQL_CURSOR *cursor, PROMQL_READ_FRAME *frame, RR
 }
 
 static bool checkpoint_add(PROMQL_CURSOR *cursor, PROMQL_READ_FRAME *frame, int *cause) {
+    // Another cursor may replace the shared recent prefix before this one reads its page.
+    if(cursor->recent_start == cursor->next) {
+        *cause = promql_read_poll(frame) ? 0 : ECANCELED;
+        return *cause == 0;
+    }
     PROMQL_PHYSICAL *physical = cursor->physical;
     PROMQL_CHECKPOINT checkpoint = {.next = (int64_t)cursor->next,
                                     .counter_bits = netdata_promql_double_bits(cursor->counter)};
@@ -240,6 +252,8 @@ static uint32_t cursor_next(void *context __maybe_unused, void *handle,
     PROMQL_READ_FRAME frame;
     RRDENG_READ_OPERATION operation = promql_read_operation(&frame, control);
     size_t count = 0;
+    PROMQL_CHECKPOINT recent = {0};
+    bool remember = false;
     while(!cursor->ended && count < PROMQL_STORAGE_PAGE_SAMPLES && cursor->next <= cursor->last) {
         if(!promql_read_poll(&frame)) { cursor->error_status = frame.interrupted; return frame.interrupted; }
         uint32_t span_index = 0;
@@ -303,6 +317,11 @@ static uint32_t cursor_next(void *context __maybe_unused, void *handle,
             counted(owner, &owner->storage_points[span.tier], 1);
             double value;
             if(physical->incremental) {
+                if(!remember && timestamp >= cursor->wanted) {
+                    recent = (PROMQL_CHECKPOINT){.next = (int64_t)timestamp,
+                        .counter_bits = netdata_promql_double_bits(cursor->counter)};
+                    remember = true;
+                }
                 bool native_counter = rrdeng_page_type_is_counter(pgd_type(page.data));
                 bool positive = native_counter || owner->absolute;
                 bool valid = native_counter ? storage_counter_fold(&cursor->counter, &point, positive) :
@@ -324,6 +343,9 @@ static uint32_t cursor_next(void *context __maybe_unused, void *handle,
         if(count) break;
     }
     if(!count) { cursor->ended = true; return NETDATA_PROMQL_END; }
+    // A later point can fail after a prefix was decoded; publish only complete batches.
+    if(remember) promql_checkpoints_remember(physical->checkpoints, recent);
+    cursor->recent_start = 0;
     out->samples = (netdata_promql_samples_t){cursor->samples, count};
     return NETDATA_PROMQL_OK;
 }

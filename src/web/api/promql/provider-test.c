@@ -139,12 +139,13 @@ static int provider_case(netdata_promql_engine_t *engine, const PROVIDER_CASE *t
 
 typedef struct {
     netdata_promql_engine_t *engine;
+    netdata_promql_control_t *control;
     unsigned mode, points;
     int errors;
     bool alias_shared, file_shared;
     uint32_t open_error, seek_error, next_error;
     unsigned cold_first_samples, cold_target;
-    uint64_t storage_points, reconstruction_points;
+    uint64_t storage_points, reconstruction_points, recent_prefix_points;
     RRDENG_READ_LEASE retained_allocation;
 } CHECKPOINT_SCENARIO;
 
@@ -267,11 +268,28 @@ static int checkpoint_read_all(netdata_promql_provider_t *provider, void *cursor
     }
 }
 
+static int checkpoint_recent_batch(const netdata_promql_page_t *page, unsigned target, bool negative, bool reset_gap) {
+    unsigned last = ((target - 1) / 4 + 1) * 4;
+    int errors = page->samples.len != last - target + 1;
+    for(uint64_t index = 0; index < page->samples.len; index++) {
+        unsigned tick = target + (unsigned)index;
+        double value = 2.0 * tick;
+        if(reset_gap && tick >= 73) value = 2.0 * (tick - 73);
+        else if(reset_gap && tick >= 69) value = 2.0 * (tick - 68);
+        if(negative) value = -value;
+        uint64_t bits = reset_gap && tick == 73 ? UINT64_C(0x7ff0000000000002) : netdata_promql_double_bits(value);
+        const netdata_promql_sample_t *point = &page->samples.data[index];
+        errors += point->time_ms != (int64_t)(PROVIDER_BASE + tick) * 1000 ||
+            point->value.kind != NETDATA_PROMQL_VALUE_FLOAT || point->value.payload.float_bits != bits;
+    }
+    return errors;
+}
+
 static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_header_t *header __maybe_unused,
                                   const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
     CHECKPOINT_SCENARIO *test = handle;
     PROMQL_PROVIDER_CONTEXT context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid,
-                                      .backing_directory = netdata_configured_cache_dir};
+                                      .backing_directory = netdata_configured_cache_dir, .absolute = test->mode == 17};
     netdata_promql_provider_t provider = promql_provider(&context);
     netdata_promql_bounds_t bounds = {(int64_t)(PROVIDER_BASE + 1) * 1000,
                                      (int64_t)(PROVIDER_BASE + test->points) * 1000};
@@ -279,14 +297,18 @@ static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_heade
     void *query = NULL;
     netdata_promql_series_open_t series = {0}, other = {0};
     netdata_promql_cursor_open_t cursor = {0}, second = {0};
-    const char *dimension = test->mode == 1 || test->mode == 7 || test->mode == 10 ? "legacy" :
-                            test->mode == 8 || test->mode == 11 ? "reset_gap" :
-                            test->mode == 12 ? "mixed" : "native";
+    const char *dimension = test->mode == 1 || test->mode == 7 || test->mode == 10 || test->mode == 15 ? "legacy" :
+                            test->mode == 8 || test->mode == 11 || test->mode == 19 ? "reset_gap" :
+                            test->mode == 12 || test->mode == 18 ? "mixed" :
+                            test->mode == 16 || test->mode == 17 ? "legacy_negative" :
+                            test->mode == 21 ? "partial_native" : test->mode == 22 ? "partial_legacy" : "native";
     netdata_promql_bounds_t cursor_bounds = bounds;
-    if(test->mode >= 9) {
+    if(test->mode >= 9 && test->mode < 13) {
         test->cold_target = test->points / 2 + 1;
         cursor_bounds.start_ms = (int64_t)(PROVIDER_BASE + test->cold_target) * 1000 - 999;
     }
+    if(test->mode == 21 || test->mode == 22)
+        cursor_bounds.end_ms = (int64_t)(PROVIDER_BASE + 20) * 1000;
     if(netdata_promql_callback_accounting(control, &account) != NETDATA_PROMQL_OK ||
        provider.query_open(provider.context, bounds, control, &query, error) != NETDATA_PROMQL_OK ||
        !checkpoint_series(&provider, query, dimension, false, bounds, control, &series) ||
@@ -295,6 +317,140 @@ static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_heade
     }
     if(test->mode == 0)
         test->errors += read_allocation_fixture(test->engine, account, &test->retained_allocation);
+    if(test->mode == 21 || test->mode == 22) {
+        PROMQL_PHYSICAL *physical = ((PROMQL_SERIES *)series.handle)->physical;
+        netdata_promql_page_t page;
+        netdata_promql_resources_t observations;
+        if(provider.cursor_seek(provider.context, cursor.handle, (int64_t)(PROVIDER_BASE + 20) * 1000,
+                                control, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error) != NETDATA_PROMQL_OK) {
+            test->errors++; goto finished;
+        }
+        test->errors += page.samples.len != 1;
+        if(page.samples.len)
+            test->errors += page.samples.data[0].time_ms != (int64_t)(PROVIDER_BASE + 20) * 1000 ||
+                page.samples.data[0].value.kind != NETDATA_PROMQL_VALUE_FLOAT ||
+                page.samples.data[0].value.payload.float_bits != netdata_promql_double_bits(40);
+        const PROMQL_CHECKPOINT *recent = promql_checkpoints_recent(physical->checkpoints);
+        test->errors += !recent || recent->next != PROVIDER_BASE + 20 ||
+            recent->counter_bits != netdata_promql_double_bits(20);
+        test->errors += provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error) != NETDATA_PROMQL_END;
+        recent = promql_checkpoints_recent(physical->checkpoints);
+        test->errors += !recent || recent->next != PROVIDER_BASE + 20 ||
+            recent->counter_bits != netdata_promql_double_bits(20);
+        if(provider.cursor_open(provider.context, series.handle, bounds, control, &second, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_seek(provider.context, second.handle, (int64_t)(PROVIDER_BASE + 30) * 1000,
+                                control, error) != NETDATA_PROMQL_OK) {
+            test->errors++; goto finished;
+        }
+        uint64_t before = context.reconstruction_points;
+        test->next_error = provider.cursor_next(provider.context, second.handle, control, &page, &observations, error);
+        test->errors += test->next_error != NETDATA_PROMQL_PROVIDER_ERROR || page.samples.data != NULL || page.samples.len != 0;
+        // Native decoding rejects the last point before the provider fold; legacy decoding reaches that fold.
+        test->errors += context.reconstruction_points - before != (test->mode == 21 ? 2U : 3U);
+        test->errors += provider.cursor_next(provider.context, second.handle, control, &page, &observations, error) != test->next_error;
+        recent = promql_checkpoints_recent(physical->checkpoints);
+        const PROMQL_CHECKPOINT *last = promql_checkpoints_last(physical->checkpoints);
+        test->errors += !recent || recent->next != PROVIDER_BASE + 20 ||
+            recent->counter_bits != netdata_promql_double_bits(20);
+        test->errors += !last || last->next != PROVIDER_BASE + 10 || physical->query->checkpoints.file != NULL;
+        goto finished;
+    }
+    if(test->mode == 14 || test->mode == 20) {
+        PROMQL_PHYSICAL *physical = ((PROMQL_SERIES *)series.handle)->physical;
+        netdata_promql_page_t page;
+        netdata_promql_resources_t observations;
+        if(provider.cursor_seek(provider.context, cursor.handle, (int64_t)(PROVIDER_BASE + 2) * 1000,
+                                control, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error) != NETDATA_PROMQL_OK) {
+            test->errors++; goto finished;
+        }
+        const PROMQL_CHECKPOINT *recent = promql_checkpoints_recent(physical->checkpoints);
+        test->errors += !recent || recent->next != PROVIDER_BASE + 2 ||
+            recent->counter_bits != netdata_promql_double_bits(2);
+        if(test->mode == 20) {
+            test->errors += netdata_promql_control_cancel(test->control) != NETDATA_PROMQL_OK;
+            test->next_error = provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error);
+            test->errors += test->next_error != NETDATA_PROMQL_CANCELLED || page.samples.data != NULL || page.samples.len != 0;
+            recent = promql_checkpoints_recent(physical->checkpoints);
+            test->errors += !recent || recent->next != PROVIDER_BASE + 2 ||
+                recent->counter_bits != netdata_promql_double_bits(2);
+            goto finished;
+        }
+        provider.cursor_close(provider.context, cursor.handle, account);
+        cursor = (netdata_promql_cursor_open_t){0};
+        int64_t when = (int64_t)(PROVIDER_BASE + 3) * 1000;
+        if(provider.cursor_open(provider.context, series.handle, bounds, control, &cursor, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_seek(provider.context, cursor.handle, when, control, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_open(provider.context, series.handle, bounds, control, &second, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_seek(provider.context, second.handle, when, control, error) != NETDATA_PROMQL_OK) {
+            test->errors++; goto finished;
+        }
+        for(unsigned pass = 0; pass < 2; pass++) {
+            // The second cursor replaces shared state before the first resumes its restored prefix.
+            void *active = pass ? cursor.handle : second.handle;
+            if(provider.cursor_next(provider.context, active, control, &page, &observations, error) != NETDATA_PROMQL_OK) {
+                test->errors++; goto finished;
+            }
+            test->errors += page.samples.len != 2;
+            for(uint64_t index = 0; index < page.samples.len; index++) {
+                const netdata_promql_sample_t *point = &page.samples.data[index];
+                test->errors += point->time_ms != when + (int64_t)index * 1000 ||
+                    point->value.kind != NETDATA_PROMQL_VALUE_FLOAT ||
+                    point->value.payload.float_bits != netdata_promql_double_bits(6.0 + 2.0 * index);
+            }
+            recent = promql_checkpoints_recent(physical->checkpoints);
+            const PROMQL_CHECKPOINT *last = promql_checkpoints_last(physical->checkpoints);
+            test->errors += !recent || recent->next != PROVIDER_BASE + 3 ||
+                recent->counter_bits != netdata_promql_double_bits(4);
+            test->errors += !last || last->next != PROVIDER_BASE + 1 || physical->query->checkpoints.file != NULL;
+        }
+        test->errors += context.reconstruction_points != 10;
+        goto finished;
+    }
+    if(test->mode >= 13 && test->mode <= 19) {
+        PROMQL_PHYSICAL *physical = ((PROMQL_SERIES *)series.handle)->physical;
+        for(unsigned target = 2; target <= 4; target++) {
+            if(target > 2) {
+                provider.cursor_close(provider.context, cursor.handle, account);
+                cursor = (netdata_promql_cursor_open_t){0};
+                if(provider.cursor_open(provider.context, series.handle, bounds, control, &cursor, error) != NETDATA_PROMQL_OK) {
+                    test->errors++; goto finished;
+                }
+            }
+            int64_t when = (int64_t)(PROVIDER_BASE + target) * 1000;
+            netdata_promql_page_t page;
+            netdata_promql_resources_t observations;
+            if(provider.cursor_seek(provider.context, cursor.handle, when, control, error) != NETDATA_PROMQL_OK ||
+               provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error) != NETDATA_PROMQL_OK) {
+                test->errors++; goto finished;
+            }
+            test->errors += checkpoint_recent_batch(&page, target, test->mode == 16, test->mode == 19);
+            const PROMQL_CHECKPOINT *last = promql_checkpoints_last(physical->checkpoints);
+            test->errors += !last || last->next != PROVIDER_BASE + 1 || physical->query->checkpoints.file != NULL;
+        }
+        test->recent_prefix_points = context.reconstruction_points;
+        test->errors += context.reconstruction_points != 9;
+        const unsigned ordinary[] = {1, 2, 4, 17, 18, 19, 16};
+        const unsigned resets[] = {70, 71, 72, 74, 75, 76, 73, 69, 70};
+        const unsigned *targets = test->mode == 19 ? resets : ordinary;
+        size_t targets_count = test->mode == 19 ? sizeof(resets) / sizeof(resets[0]) : sizeof(ordinary) / sizeof(ordinary[0]);
+        for(size_t i = 0; i < targets_count; i++) {
+            provider.cursor_close(provider.context, cursor.handle, account);
+            cursor = (netdata_promql_cursor_open_t){0};
+            netdata_promql_page_t page;
+            netdata_promql_resources_t observations;
+            if(provider.cursor_open(provider.context, series.handle, bounds, control, &cursor, error) != NETDATA_PROMQL_OK ||
+               provider.cursor_seek(provider.context, cursor.handle, (int64_t)(PROVIDER_BASE + targets[i]) * 1000,
+                                    control, error) != NETDATA_PROMQL_OK ||
+               provider.cursor_next(provider.context, cursor.handle, control, &page, &observations, error) != NETDATA_PROMQL_OK) {
+                test->errors++; goto finished;
+            }
+            test->errors += checkpoint_recent_batch(&page, targets[i], test->mode == 16, test->mode == 19);
+            test->errors += !physical->basis_selected || physical->anchored != (test->mode == 13 || test->mode == 19);
+        }
+        goto finished;
+    }
     if(test->mode >= 9) {
         int64_t when = (int64_t)(PROVIDER_BASE + test->cold_target) * 1000;
         double expected = 2.0 * (test->cold_target - (test->mode == 11 ? 73 : 0));
@@ -371,9 +527,18 @@ static uint32_t checkpoint_begin(void *handle, const netdata_promql_output_heade
         test->errors += !test->file_shared;
     }
     if(test->mode == 3 || test->mode == 4) {
+        int64_t target = (int64_t)(PROVIDER_BASE + test->points / 2) * 1000;
+        netdata_promql_page_t prepared;
+        netdata_promql_resources_t observations;
+        if(provider.cursor_seek(provider.context, cursor.handle, target, control, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_next(provider.context, cursor.handle, control, &prepared, &observations, error) != NETDATA_PROMQL_OK) {
+            test->errors++; goto finished;
+        }
+        const PROMQL_CHECKPOINT *recent = promql_checkpoints_recent(((PROMQL_SERIES *)series.handle)->physical->checkpoints);
+        test->errors += !recent || recent->next != target / 1000;
+        target += 1000;
         // Only this query's anonymous checkpoint file is truncated; DBengine files remain intact.
         if(ftruncate(owned->checkpoints.file->fd, 0)) { test->errors++; goto finished; }
-        int64_t target = (int64_t)(PROVIDER_BASE + test->points / 2) * 1000;
         if(test->mode == 3) {
             PROMQL_PHYSICAL *physical = ((PROMQL_SERIES *)series.handle)->physical;
             size_t references = physical->references;
@@ -432,10 +597,15 @@ static int checkpoint_callbacks(netdata_promql_engine_t *engine, unsigned points
     const char *names[] = {"native-seeks", "legacy-seeks", "alias-basis", "failed-open-cleanup",
                           "failed-seek-sticky", "two-metrics-one-file", "native-cold-seek",
                           "legacy-cold-seek", "reset-gap-cold-seek", "native-late-open", "legacy-late-open",
-                          "reset-gap-late-open", "mixed-late-open"};
+                          "reset-gap-late-open", "mixed-late-open", "adjacent-fresh-cursors", "interleaved-fresh-cursors",
+                          "recent-legacy", "recent-negative", "recent-absolute", "recent-mixed", "recent-reset-gap",
+                          "recent-cancel-preserves-prefix", "recent-partial-native-failure", "recent-partial-legacy-failure"};
     int errors = 0;
     for(unsigned mode = 0; mode < sizeof(names) / sizeof(names[0]); mode++) {
         CHECKPOINT_SCENARIO test = {.engine = engine, .mode = mode, .points = points};
+        if(mode == 20 && netdata_promql_control_create(engine, NULL, &test.control) != NETDATA_PROMQL_OK) {
+            errors++; continue;
+        }
         PROMQL_PROVIDER_CONTEXT context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid,
                                           .backing_directory = netdata_configured_cache_dir};
         netdata_promql_provider_t provider = promql_provider(&context);
@@ -450,11 +620,12 @@ static int checkpoint_callbacks(netdata_promql_engine_t *engine, unsigned points
         netdata_promql_output_t output = {.header = {NETDATA_PROMQL_ABI_VERSION, sizeof(output)}, .context = &test,
             .begin = checkpoint_begin, .chunk = checkpoint_chunk, .commit = discovery_commit, .abort = discovery_abort};
         if(status == NETDATA_PROMQL_OK)
-            status = netdata_promql_execute_precise(query, &provider, &request, NULL, &output, &report);
+            status = netdata_promql_execute_precise(query, &provider, &request, test.control, &output, &report);
         netdata_promql_query_observations_t observations = {0};
         if(report) netdata_promql_report_observations(report, &observations);
         if(report) netdata_promql_report_release(report);
         if(query) netdata_promql_query_release(query);
+        if(test.control) test.errors += netdata_promql_control_release(test.control) != NETDATA_PROMQL_OK;
         netdata_promql_engine_observations_t remaining = {0};
         if(mode == 0) {
             test.errors += !test.retained_allocation.allocation;
@@ -467,16 +638,121 @@ static int checkpoint_callbacks(netdata_promql_engine_t *engine, unsigned points
         rrdeng_read_lease_release(&test.retained_allocation);
         rrdeng_read_lease_release(&test.retained_allocation);
         test.errors += netdata_promql_engine_observations(engine, &remaining) != NETDATA_PROMQL_OK;
-        test.errors += status != NETDATA_PROMQL_OK || remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != 0 ||
+        test.errors += status != (mode == 20 ? NETDATA_PROMQL_CANCELLED : NETDATA_PROMQL_OK) ||
+                       remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != 0 ||
                        remaining.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current != 0;
         printf("{\"checkpoint_callback\":\"%s\",\"errors\":%d,\"status\":%u,\"open_error\":%u,\"seek_error\":%u,"
                "\"next_error\":%u,\"alias_shared\":%s,\"file_shared\":%s,\"provider_peak\":%"PRIu64
                ",\"remaining_provider\":%"PRIu64",\"cold_first_samples\":%u,\"cold_target\":%u"
-               ",\"storage_points\":%"PRIu64",\"provider_folds\":%"PRIu64"}\n", names[mode], test.errors, status, test.open_error,
+               ",\"storage_points\":%"PRIu64",\"provider_folds\":%"PRIu64",\"recent_prefix_points\":%"PRIu64"}\n", names[mode], test.errors, status, test.open_error,
                test.seek_error, test.next_error, test.alias_shared ? "true" : "false", test.file_shared ? "true" : "false",
                observations.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].peak,
                remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current, test.cold_first_samples,
-               test.cold_target, test.storage_points, test.reconstruction_points);
+               test.cold_target, test.storage_points, test.reconstruction_points, test.recent_prefix_points);
+        errors += test.errors;
+    }
+    return errors;
+}
+
+typedef struct {
+    const char *dimension;
+    uint64_t points, folds, elapsed_us;
+    bool gauge;
+    int errors;
+} PREFIX_COST;
+
+static uint32_t prefix_cost_begin(void *handle, const netdata_promql_output_header_t *header __maybe_unused,
+                                  const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
+    PREFIX_COST *test = handle;
+    PROMQL_PROVIDER_CONTEXT context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid,
+                                      .backing_directory = netdata_configured_cache_dir};
+    netdata_promql_provider_t provider = promql_provider(&context);
+    netdata_promql_bounds_t bounds = {(int64_t)(PROVIDER_BASE + 1) * 1000, (int64_t)(PROVIDER_BASE + 256) * 1000};
+    const netdata_promql_accounting_context_t *account = NULL;
+    void *query = NULL;
+    netdata_promql_series_open_t series = {0};
+    netdata_promql_cursor_open_t cursor = {0};
+    if(netdata_promql_callback_accounting(control, &account) != NETDATA_PROMQL_OK ||
+       provider.query_open(provider.context, bounds, control, &query, error) != NETDATA_PROMQL_OK ||
+       !checkpoint_series(&provider, query, test->dimension, false, bounds, control, &series)) {
+        test->errors++; goto finished;
+    }
+    usec_t started = now_monotonic_usec();
+    for(unsigned target = 1; target < 256; target++) {
+        netdata_promql_bounds_t window = {bounds.start_ms, (int64_t)(PROVIDER_BASE + target + 1) * 1000};
+        netdata_promql_page_t page;
+        netdata_promql_resources_t resources;
+        if(provider.cursor_open(provider.context, series.handle, window, control, &cursor, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_seek(provider.context, cursor.handle, (int64_t)(PROVIDER_BASE + target) * 1000,
+                                control, error) != NETDATA_PROMQL_OK ||
+           provider.cursor_next(provider.context, cursor.handle, control, &page, &resources, error) != NETDATA_PROMQL_OK) {
+            test->errors++; break;
+        }
+        test->errors += page.samples.len != 2;
+        for(uint64_t index = 0; index < page.samples.len; index++) {
+            const netdata_promql_sample_t *point = &page.samples.data[index];
+            double value = test->gauge ? 2 : 2.0 * (target + index);
+            test->errors += point->time_ms != (int64_t)(PROVIDER_BASE + target + index) * 1000 ||
+                point->value.kind != NETDATA_PROMQL_VALUE_FLOAT ||
+                point->value.payload.float_bits != netdata_promql_double_bits(value);
+        }
+        test->errors += provider.cursor_next(provider.context, cursor.handle, control, &page, &resources, error) != NETDATA_PROMQL_END;
+        provider.cursor_close(provider.context, cursor.handle, account);
+        cursor = (netdata_promql_cursor_open_t){0};
+    }
+    test->elapsed_us = now_monotonic_usec() - started;
+finished:
+    test->points = context.storage_points[0];
+    test->folds = context.reconstruction_points;
+    if(cursor.handle) provider.cursor_close(provider.context, cursor.handle, account);
+    if(series.handle) provider.series_close(provider.context, series.handle, account);
+    if(query) provider.query_close(provider.context, query, account);
+    if(test->errors) { *error = promql_bytes("moving counter window fixture failed"); return NETDATA_PROMQL_OUTPUT_ERROR; }
+    return NETDATA_PROMQL_OK;
+}
+
+static int prefix_cost_fixture(netdata_promql_engine_t *engine, RRDSET *chart) {
+    const char *names[] = {"cost_native", "cost_legacy", "cost_gauge"};
+    for(unsigned kind = 0; kind < 3; kind++) {
+        RRDDIM *metric = rrddim_add(chart, names[kind], NULL, 1, 1,
+                                   kind == 2 ? RRD_ALGORITHM_ABSOLUTE : RRD_ALGORITHM_INCREMENTAL);
+        if(!metric) return 1;
+        for(unsigned i = 1; i <= 256; i++)
+            storage_engine_store_metric(metric->tiers[0].sch, (usec_t)(PROVIDER_BASE + i) * USEC_PER_SEC,
+                2, 2, 2, 1, 0, SN_FLAG_NOT_ANOMALOUS | (kind ? SP_FLAG_ORDINARY_SOURCE : SP_FLAG_COUNTER_SOURCE));
+        rrddim_finalize_collection_and_check_retention(metric);
+    }
+    int errors = 0;
+    for(unsigned repeat = 0; repeat < 6; repeat++) for(unsigned kind = 0; kind < 3; kind++) {
+        PREFIX_COST test = {.dimension = names[kind], .gauge = kind == 2};
+        PROMQL_PROVIDER_CONTEXT context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid,
+                                          .backing_directory = netdata_configured_cache_dir};
+        netdata_promql_provider_t provider = promql_provider(&context);
+        netdata_promql_query_t *query = NULL;
+        netdata_promql_report_t *report = NULL;
+        uint32_t status = netdata_promql_compile(engine, promql_bytes("vector(0)"), NULL, &query, &report);
+        if(report) { netdata_promql_report_release(report); report = NULL; }
+        netdata_promql_precise_request_t request = {
+            .header = {NETDATA_PROMQL_ABI_VERSION, sizeof(request)}, .kind = NETDATA_PROMQL_REQUEST_INSTANT,
+            .start = {.unix_seconds = PROVIDER_BASE + 256}, .lookback_ns = INT64_C(1000000000),
+        };
+        netdata_promql_output_t output = {.header = {NETDATA_PROMQL_ABI_VERSION, sizeof(output)}, .context = &test,
+            .begin = prefix_cost_begin, .chunk = checkpoint_chunk, .commit = discovery_commit, .abort = discovery_abort};
+        if(status == NETDATA_PROMQL_OK)
+            status = netdata_promql_execute_precise(query, &provider, &request, NULL, &output, &report);
+        netdata_promql_query_observations_t observations = {0};
+        if(report) netdata_promql_report_observations(report, &observations);
+        if(report) netdata_promql_report_release(report);
+        if(query) netdata_promql_query_release(query);
+        netdata_promql_engine_observations_t remaining = {0};
+        test.errors += status != NETDATA_PROMQL_OK || netdata_promql_engine_observations(engine, &remaining) != NETDATA_PROMQL_OK;
+        test.errors += remaining.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current != 0 ||
+            remaining.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current != 0;
+        if(test.gauge) test.errors += test.points != 510 || test.folds != 0;
+        printf("{\"prefix_cost\":\"%s\",\"repeat\":%u,\"errors\":%d,\"storage_points\":%"PRIu64
+               ",\"provider_folds\":%"PRIu64",\"elapsed_us\":%"PRIu64",\"provider_peak\":%"PRIu64"}\n",
+               names[kind], repeat, test.errors, test.points, test.folds, test.elapsed_us,
+               observations.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].peak);
         errors += test.errors;
     }
     return errors;
@@ -493,7 +769,20 @@ static int checkpoint_pages_fixture(netdata_promql_engine_t *engine) {
     RRDDIM *reset_gap = rrddim_add(chart, "reset_gap", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
     RRDDIM *legacy_negative = rrddim_add(chart, "legacy_negative", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
     RRDDIM *mixed = rrddim_add(chart, "mixed", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
-    if(!native || !legacy || !reset_gap || !legacy_negative || !mixed) { rrdset_free(chart); return 1; }
+    RRDDIM *partial_native = rrddim_add(chart, "partial_native", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
+    RRDDIM *partial_legacy = rrddim_add(chart, "partial_legacy", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
+    if(!native || !legacy || !reset_gap || !legacy_negative || !mixed || !partial_native || !partial_legacy) {
+        rrdset_free(chart); return 1;
+    }
+    RRDDIM *partial[] = {partial_native, partial_legacy};
+    for(size_t kind = 0; kind < sizeof(partial) / sizeof(partial[0]); kind++) {
+        storage_engine_store_change_collection_frequency(partial[kind]->tiers[1].sch, 10);
+        for(unsigned endpoint = 10; endpoint <= 40; endpoint += 10)
+            storage_engine_store_metric(partial[kind]->tiers[1].sch, (usec_t)(PROVIDER_BASE + endpoint) * USEC_PER_SEC,
+                20, 2, 2, endpoint == 40 ? 0 : 10, 0,
+                SN_FLAG_NOT_ANOMALOUS | (kind ? SP_FLAG_ORDINARY_SOURCE : SP_FLAG_COUNTER_SOURCE));
+        rrddim_finalize_collection_and_check_retention(partial[kind]);
+    }
     for(unsigned i = 1; i <= pages[5] * points_per_page; i++) {
         usec_t when = (usec_t)(PROVIDER_BASE + i) * USEC_PER_SEC;
         storage_engine_store_metric(native->tiers[0].sch, when, 2, 2, 2, 1, 0,
@@ -545,6 +834,7 @@ static int checkpoint_pages_fixture(netdata_promql_engine_t *engine) {
         printf("{\"checkpoint_memory\":\"%s\",\"short_peak\":%"PRIu64",\"long_peak\":%"PRIu64
                ",\"errors\":%d}\n", dimension, reference_peak, longest_peak, failures);
     }
+    errors += prefix_cost_fixture(engine, chart);
     errors += checkpoint_callbacks(engine, pages[5] * points_per_page);
     const PROVIDER_CASE no_backing[] = {
         {"checkpoint-short-no-backing", "fixture_checkpoints{netdata_dimension_id=\"native\"}", 64, 64, false, 128, 1, 0},

@@ -245,13 +245,13 @@ the storage runner below measures the real daemon's query-owned allocation handl
 
 ## Counter checkpoint memory
 
-Each physical metric retains a short 16-record prefix and exact first/last records. Longer histories use one
+Each physical metric retains a short 16-record prefix, exact first/last records, and one recent counter prefix. Longer histories use one
 query-owned anonymous file, shared across metrics and aliases, and a lazy copy window capped at 8 KiB. Successful
 growth reserves a whole region before copying/appending and publishes after its final control check. Failed growth
 leaves the earlier records valid; unreachable regions remain until query cleanup. No raw history is held in RAM.
 
 The real provider fixture forces four samples per DBengine page, then compares complete native/legacy counter sums
-and release accounting at 16/17/33/129/513/2,049 pages. In the recorded array baseline and both current codecs,
+and release accounting at 16/17/33/129/513/2,049 pages. In the retained checkpoint qualification's array baseline and both candidate codecs,
 tracked provider peak at 2,049 pages falls from 135,097 to 45,097 bytes. A 16-page query grows from 37,017 to
 37,081 bytes. These are source-bound fixture observations, not whole-process RSS or general throughput guarantees.
 Checkpoint state is bounded in history length; metric metadata and reducer state still grow with cardinality.
@@ -273,6 +273,11 @@ binds the rebuilt Agent and its complete isolated storage/integration cohort.
 The [checkpoint qualification](checkpoint-qualification.json) binds the source, executable, complete storage/live
 receipts and actual module execution on AMD64/ARM64/ARM32. Existing Rust expression qualification retains its
 unchanged source/binary identity; these C-only changes do not reattribute or rerun the full expression corpus.
+
+The subsequent [recent counter prefix optimization](RECENT_COUNTER_PREFIX.md) reuses one successful batch's
+pre-sample counter state across cursors. Its separate measurements record the added fixed memory, native/legacy
+moving-window costs, gauge controls and expanded failure checks. The older peaks above retain their original
+source attribution.
 
 Natural DBengine page boundaries depend on chart alignment, including its process-local pointer hash. A probe can
 fetch a whole page before a replay seeks, so fetched-sample totals may vary across processes with identical inputs.

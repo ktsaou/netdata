@@ -38,7 +38,9 @@ PROVIDER_CASES |= {"checkpoint-reset-gap", "checkpoint-reset-gap-alias", "checkp
 CHECKPOINT_CALLBACK_CASES = {"native-seeks", "legacy-seeks", "alias-basis", "failed-open-cleanup",
                              "failed-seek-sticky", "two-metrics-one-file", "native-cold-seek",
                              "legacy-cold-seek", "reset-gap-cold-seek", "native-late-open", "legacy-late-open",
-                             "reset-gap-late-open", "mixed-late-open"}
+                             "reset-gap-late-open", "mixed-late-open", "adjacent-fresh-cursors", "interleaved-fresh-cursors",
+                             "recent-legacy", "recent-negative", "recent-absolute", "recent-mixed", "recent-reset-gap",
+                             "recent-cancel-preserves-prefix", "recent-partial-native-failure", "recent-partial-legacy-failure"}
 DISCOVERY_CASES = {"negative", "reversed", "between-seconds", "zero", "positive-wide", "full-clock", "future-wide"}
 OUTPUT_CASES = {"scalar-no-backing", "string-escaping", "vector-no-backing", "large-no-backing",
                 "plain-2049", "plain-100000", "gzip-2049", "gzip-100000"}
@@ -207,6 +209,12 @@ def main():
                         raise RuntimeError(f"{codec}/{phase} failed; retained logs in {root}")
                     continue
                 geometry = [row for row in rows if "storage_geometry" in row]
+                prefix_rows = [row for row in rows if "prefix_cost" in row]
+                expected_prefix = {(name, repeat) for name in ("cost_native", "cost_legacy", "cost_gauge")
+                                   for repeat in range(6)} if phase == "read" else set()
+                if ({(row["prefix_cost"], row["repeat"]) for row in prefix_rows} != expected_prefix
+                        or len(prefix_rows) != len(expected_prefix)):
+                    raise RuntimeError("moving counter window fixture roster differs")
                 expected_geometry = {"singleton-intervals"} if phase == "read" else set()
                 singletons = [row for row in rows if "storage_singleton" in row]
                 expected_singletons = {(kind + "-" + cache, tier) for kind in ["known", "default"]
@@ -256,7 +264,7 @@ def main():
                 expected_operations = OPERATION_CASES if phase == "read" else set()
                 expected_routes = API_ROUTE_CASES if phase == "read" else set()
                 expected_peers = RTC_PEER_CASES if phase == "read" and args.rtc_peers else set()
-                if (result or len(rows) != 36 + len(expected_geometry) + len(expected_singletons) + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_descriptions) + len(expected_description_sorts) + len(expected_description_costs) + len(expected_description_keys) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
+                if (result or len(rows) != 36 + len(expected_prefix) + len(expected_geometry) + len(expected_singletons) + len(expected_faults) + len(expected_collections) + len(expected_providers) + len(expected_checkpoints) + len(expected_checkpoint_callbacks) + len(expected_discoveries) + len(expected_outputs) + len(expected_natives) + len(expected_refs) + len(expected_descriptions) + len(expected_description_sorts) + len(expected_description_costs) + len(expected_description_keys) + len(expected_requests) + len(expected_api) + len(expected_mqtt) + len(expected_aclk) + len(expected_rtc) + len(expected_operations) + len(expected_routes) + len(expected_peers)
                         or {row["storage_geometry"] for row in geometry} != expected_geometry
                         or any(row["errors"] for row in rows)
                         or {(row["storage_singleton"], row["tier"]) for row in singletons} != expected_singletons

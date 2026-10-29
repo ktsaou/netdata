@@ -9,7 +9,7 @@ _Static_assert(sizeof(PROMQL_CHECKPOINT) == 16, "PromQL checkpoints require fixe
 
 struct promql_checkpoints {
     uint64_t count;
-    PROMQL_CHECKPOINT first, last;
+    PROMQL_CHECKPOINT first, last, recent;
     uint64_t base, capacity;
     PROMQL_CHECKPOINT points[];
 };
@@ -75,7 +75,7 @@ bool promql_checkpoints_append(PROMQL_CHECKPOINTS **handle, PROMQL_CHECKPOINT_BA
                                sizeof(*owner) + PROMQL_CHECKPOINT_INLINE * sizeof(value));
         if(!owner) { *error = ENOMEM; return false; }
         owner->count = 1;
-        owner->first = owner->last = owner->points[0] = value;
+        owner->first = owner->last = owner->recent = owner->points[0] = value;
         if(!checkpoint_poll(frame, error)) { promql_free(owner); return false; }
         *handle = owner;
         return true;
@@ -167,6 +167,14 @@ bool promql_checkpoints_find(const PROMQL_CHECKPOINTS *owner, PROMQL_CHECKPOINT_
 
 const PROMQL_CHECKPOINT *promql_checkpoints_last(const PROMQL_CHECKPOINTS *owner) {
     return owner ? &owner->last : NULL;
+}
+
+const PROMQL_CHECKPOINT *promql_checkpoints_recent(const PROMQL_CHECKPOINTS *owner) {
+    return owner ? &owner->recent : NULL;
+}
+
+void promql_checkpoints_remember(PROMQL_CHECKPOINTS *owner, PROMQL_CHECKPOINT value) {
+    owner->recent = value;
 }
 
 void promql_checkpoints_free(PROMQL_CHECKPOINTS *owner) {
