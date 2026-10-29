@@ -1,0 +1,431 @@
+{
+  "schema": 1,
+  "date": "2026-10-29",
+  "engine_commit": "0e23e23dd621a9aa872a02efd9eb039371862330",
+  "previous_engine_commit": "2c4994174538d23d0a1b023373de2d371a7c44a1",
+  "installed_binary_sha256": "cc0030eaa5d2665e2fbb2019848304e386900ecdd8bcacb210d6ee8ac3e926a6",
+  "deployment": {
+    "unit": "promql-deploy-0e23e23dd6",
+    "invocation": "d4ee6ebba3004890bea9cb00ac72ea8f",
+    "installer_exit": 0,
+    "protected_configuration_comparisons": "passed",
+    "smoke_query": "passed"
+  },
+  "captures": {
+    "before": {
+      "file": "matrix-page-reuse-before-measurements.jsonl.gz",
+      "sha256": "d07e81aa07b72ccda7f79a5da34a66317e8b2a138e98eda591905b6ebeca078d",
+      "uncompressed_sha256": "d40e7c22262663e6444a1ebfc30438f3f7d2ff94ae2c302658a5268d87f3a61c",
+      "records": 380,
+      "queries": 360,
+      "complete_response_bodies_retained_privately": true,
+      "response_body_compressed_bytes": 1644261
+    },
+    "after": {
+      "file": "matrix-page-reuse-after-measurements.jsonl.gz",
+      "sha256": "bbfb00f14818c011b7cc11075852ed31e5855df001059cdf77c1242047e80fca",
+      "uncompressed_sha256": "fd25abb0ef21f7b16256f2703da6267047e31058141c56b2c82ee3248283f17d",
+      "records": 380,
+      "queries": 360,
+      "complete_response_bodies_retained_privately": true,
+      "response_body_compressed_bytes": 1641432
+    }
+  },
+  "comparison": {
+    "file": "matrix-page-reuse-comparison.json.gz",
+    "sha256": "b953026980d81b8a574b8d180badfd3fb6f5d6964d9151497b6eff5cfe80d1fa",
+    "uncompressed_sha256": "3ab86254aabb757e6875fe5d0d0fe989b8fbf4f83ebd1e2830a9efc423d326f1"
+  },
+  "before_summary": [
+    {
+      "cohort": "fleet4",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 127,
+        "empty": 9
+      },
+      "seconds": 179.40225540101528
+    },
+    {
+      "cohort": "instant-fleet",
+      "requests": 136,
+      "outcomes": {
+        "empty": 12,
+        "nonempty": 124
+      },
+      "seconds": 125.17129482800374
+    },
+    {
+      "cohort": "focus-host",
+      "requests": 16,
+      "outcomes": {
+        "empty": 6,
+        "nonempty": 10
+      },
+      "seconds": 28.809990325011313
+    },
+    {
+      "cohort": "focus-group",
+      "requests": 16,
+      "outcomes": {
+        "empty": 4,
+        "nonempty": 12
+      },
+      "seconds": 33.15753714501625
+    },
+    {
+      "cohort": "focus-fleet",
+      "requests": 16,
+      "outcomes": {
+        "empty": 2,
+        "nonempty": 14
+      },
+      "seconds": 51.97751275502378
+    },
+    {
+      "cohort": "focus-fleet8",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 25.85463339596754
+    },
+    {
+      "cohort": "focus-6h",
+      "requests": 8,
+      "outcomes": {
+        "error": 2,
+        "empty": 2,
+        "nonempty": 4
+      },
+      "seconds": 72.8114455229952
+    },
+    {
+      "cohort": "focus-24h",
+      "requests": 8,
+      "outcomes": {
+        "error": 2,
+        "empty": 1,
+        "nonempty": 5
+      },
+      "seconds": 90.7095150599489
+    },
+    {
+      "cohort": "focus-7d",
+      "requests": 8,
+      "outcomes": {
+        "error": 5,
+        "nonempty": 3
+      },
+      "seconds": 166.222891893005
+    }
+  ],
+  "after_summary": [
+    {
+      "cohort": "fleet4",
+      "requests": 136,
+      "outcomes": {
+        "empty": 9,
+        "error": 1,
+        "nonempty": 126
+      },
+      "seconds": 179.93092785397312
+    },
+    {
+      "cohort": "instant-fleet",
+      "requests": 136,
+      "outcomes": {
+        "empty": 12,
+        "nonempty": 124
+      },
+      "seconds": 128.93305713596055
+    },
+    {
+      "cohort": "focus-host",
+      "requests": 16,
+      "outcomes": {
+        "empty": 6,
+        "nonempty": 10
+      },
+      "seconds": 32.160654868988786
+    },
+    {
+      "cohort": "focus-group",
+      "requests": 16,
+      "outcomes": {
+        "empty": 4,
+        "nonempty": 12
+      },
+      "seconds": 35.27803285501432
+    },
+    {
+      "cohort": "focus-fleet",
+      "requests": 16,
+      "outcomes": {
+        "empty": 2,
+        "nonempty": 14
+      },
+      "seconds": 52.92219976603519
+    },
+    {
+      "cohort": "focus-fleet8",
+      "requests": 16,
+      "outcomes": {
+        "empty": 2,
+        "nonempty": 14
+      },
+      "seconds": 23.531735919008497
+    },
+    {
+      "cohort": "focus-6h",
+      "requests": 8,
+      "outcomes": {
+        "empty": 2,
+        "error": 2,
+        "nonempty": 4
+      },
+      "seconds": 75.03523480403237
+    },
+    {
+      "cohort": "focus-24h",
+      "requests": 8,
+      "outcomes": {
+        "empty": 1,
+        "error": 2,
+        "nonempty": 5
+      },
+      "seconds": 96.23695055500139
+    },
+    {
+      "cohort": "focus-7d",
+      "requests": 8,
+      "outcomes": {
+        "error": 5,
+        "nonempty": 3
+      },
+      "seconds": 167.85581099998672
+    }
+  ],
+  "successful_pairs": 350,
+  "ordered_equal": 274,
+  "unordered_equal": 348,
+  "diagnostics_equal": 350,
+  "same_series_point_counts": 350,
+  "transitions": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/9/A",
+      "repeat": 0,
+      "before": "nonempty",
+      "after": "error"
+    }
+  ],
+  "remaining": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-promql-apps/9/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.133627980016172
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.027273588988464
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.032177461020183
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.024190289026592
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.016653866972774
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.006860648980364
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.018140028987546
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.005122824048158
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.00740246399073
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.121580052014906
+    }
+  ],
+  "average_order_explanation": {
+    "checks": [
+      {
+        "phase": "before",
+        "query": "applications",
+        "exact_matched_points": 6087,
+        "inner_rows": 736,
+        "observed_host_order_sha256": "a84177bcc187be9740239276b59eeb69340bd9ed03648ad06b62aa7f133bbddd"
+      },
+      {
+        "phase": "before",
+        "query": "bandwidth",
+        "exact_matched_points": 31,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "a84177bcc187be9740239276b59eeb69340bd9ed03648ad06b62aa7f133bbddd"
+      },
+      {
+        "phase": "after",
+        "query": "applications",
+        "exact_matched_points": 6087,
+        "inner_rows": 736,
+        "observed_host_order_sha256": "aff32c6e31435758b54cd565c7d5469a96a2bf4d98b945f57df02a97bd79e908"
+      },
+      {
+        "phase": "after",
+        "query": "bandwidth",
+        "exact_matched_points": 31,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "aff32c6e31435758b54cd565c7d5469a96a2bf4d98b945f57df02a97bd79e908"
+      }
+    ],
+    "differences": [
+      {
+        "query": "applications",
+        "points": 6087,
+        "changed_points": 20,
+        "max_ulp_difference": 2
+      },
+      {
+        "query": "bandwidth",
+        "points": 31,
+        "changed_points": 1,
+        "max_ulp_difference": 1
+      }
+    ],
+    "inner_values_identical": true,
+    "observed_host_order_changed": true,
+    "exact_reproduction": true,
+    "scope": "Finite captured values only; host order is observed in separate same-cohort queries, not instrumented inside the nested averages.",
+    "interpretation": "The observed host order exactly explains the differences. Restart-mediated metadata loading is an inferred cause of that order change.",
+    "runner_sha256": "75cf99edfea40862db7043d71a0bfdb66030539c71777e1e9ab2dcf5cfd0202b",
+    "arithmetic_sources": {
+      "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+      "src/crates/promql-engine/src/aggregation.rs": "2d5b6cc5381eecc4c717b52b24adf4906fb21571c073e443388cbb9ddb859bb6"
+    }
+  },
+  "successful_pair_median_elapsed_ratio": 1.03832120176719,
+  "same_sample_count_pairs": 337,
+  "memory_acquisition_comparison": {
+    "workspace": {
+      "acquired_before": 38059685692,
+      "acquired_after": 39873956212,
+      "queries_with_lower_acquired": 21,
+      "queries_with_higher_acquired": 54,
+      "queries_with_lower_peak": 44,
+      "queries_with_higher_peak": 128
+    },
+    "accounting": {
+      "acquired_before": 18059632512,
+      "acquired_after": 18248977216,
+      "queries_with_lower_acquired": 0,
+      "queries_with_higher_acquired": 216,
+      "queries_with_lower_peak": 46,
+      "queries_with_higher_peak": 7
+    },
+    "providerHeld": {
+      "acquired_before": 47629142157,
+      "acquired_after": 47821426308,
+      "queries_with_lower_acquired": 0,
+      "queries_with_higher_acquired": 216,
+      "queries_with_lower_peak": 1,
+      "queries_with_higher_peak": 0
+    },
+    "borrowedView": {
+      "acquired_before": 33422965941,
+      "acquired_after": 41274433528,
+      "queries_with_lower_acquired": 15,
+      "queries_with_higher_acquired": 88,
+      "queries_with_lower_peak": 2,
+      "queries_with_higher_peak": 29
+    }
+  },
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 3.902351187018212,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 16.133663855027407,
+    "after_seconds": 1.5675123159890063
+  },
+  "artifacts": {
+    ".tmp/practical-replay-j32eeh4e/matrix46-comparison.json": "3ab86254aabb757e6875fe5d0d0fe989b8fbf4f83ebd1e2830a9efc423d326f1",
+    ".tmp/practical-replay-j32eeh4e/matrix46-average-order-explanation.json": "9fc212cfb9d7ebf661d313e41faa2f9e566597f7ce5622a564562df12f345d1f",
+    ".tmp/practical-replay-j32eeh4e/matrix46-deployment.json": "c56dd13e989a7f51c999e2a1c12f8805decfda42a83c58e985f49bee40fd3bfc",
+    ".tmp/practical-replay-j32eeh4e/matrix46before-live-receipt.json": "cbfe83e0c59c92b4162c63692786e4bdad58bc4ac3b50b2958d6c46e98fcd1b6",
+    ".tmp/practical-replay-j32eeh4e/matrix46before-runtime.json": "0dd7e037d18eb7f26a808eb998c629999d424f219156dd36dd55308630519323",
+    ".tmp/practical-replay-j32eeh4e/matrix46after-live-receipt.json": "6827b9f8c9d59d80a9c442ba10e596c6a42995ee486ed02796aa77794a03d967",
+    ".tmp/practical-replay-j32eeh4e/matrix46after-runtime.json": "d6cd05ea035a58e0248be95fc222192d52e45233a050adcf0975b9c7074aa38d",
+    ".tmp/practical-replay-j32eeh4e/deploy_matrix46.py": "850ee8913cc3feb5fbafdde112480443bcadb30394ed53492f56ae932d4d0e29",
+    ".tmp/practical-replay-j32eeh4e/compare_matrix46.py": "f5d2f86748d527cd292556c4fed2d3f8ff2ee8cd4e89580e0fd045b6077fdd06",
+    ".tmp/practical-replay-j32eeh4e/explain_matrix46_averages.py": "75cf99edfea40862db7043d71a0bfdb66030539c71777e1e9ab2dcf5cfd0202b",
+    ".tmp/practical-replay-j32eeh4e/publish_matrix46_live.py": "c96707b1026132e67d5921099881936be661088c8320ae0a4e7506e2fa71382c",
+    ".tmp/practical-replay-j32eeh4e/adapter_live_responses.py": "cb915148290947019634593a36141b85d920d77f6b3b5b4fafe4390075148a43",
+    ".tmp/practical-replay-j32eeh4e/live_with_responses.py": "1d9ea602b36fd9768e007467cfa136bfab51332720ae48d2c5f8ab66e51c37da",
+    ".tmp/practical-replay-j32eeh4e/matrix46-deployment.stdout": "6aa538b88e869a55eec56a569ebb9f896c30732a8c9c89311292aa61a47a6eaf",
+    ".tmp/practical-replay-j32eeh4e/matrix46-deployment.stderr": "025fb0dfd9f9906f9cec517993e9a214fe8668af4713c8d714360dcaaa1f244b",
+    ".tmp/practical-replay-j32eeh4e/matrix46-deployment-journal.stdout": "7d54fab8211ba27f538653284d67865e3155cf39ba7051e2912da07275defb6e"
+  },
+  "interpretation": [
+    "Matrix acquisition reuses its current borrowed page. This live replay does not establish an overall throughput improvement.",
+    "The baseline has9timeouts and the candidate10: nine long-history requests remain, and the concurrent fixed-top-ten application disk-I/O panel changes from23.406seconds to a25.134second timeout. This panel also timed out in previous unchanged-runtime captures; causality is not established.",
+    "All successful pairs preserve labels/timestamps/counts and diagnostics. The21 differing numeric points are exactly reproduced using unchanged inner values and the observed host order.",
+    "Provider order is preserved by decision9 outside designated unspecified intermediate boundaries. Host insertion/loading after restart is an inferred source of the observed ordering change.",
+    "Same expressions, scopes, windows, steps and deadlines; live storage, cache residency and background work are not immutable.",
+    "Acquired memory is cumulative allocation or borrowed exposure traffic, not simultaneous RAM. Observed costs are mixed across categories; timeout counters describe partial execution.",
+    "Long-history and concurrent-query failures remain open. Histogram73 remains unapproved; historical bucket-boundary repair is excluded by71."
+  ]
+}

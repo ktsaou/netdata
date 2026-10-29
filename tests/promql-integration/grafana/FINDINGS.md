@@ -11,9 +11,34 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
+## Follow-up: matrix acquisition page reuse — 2026-10-29
+
+Runtime `0e23e23dd6` is installed. Matrix acquisition now advances within its currently borrowed page instead of
+repeating same-page provider seeks. Physical initial/final seeks, complete-tail validation and native decoder
+phases remain. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/MATRIX_PAGE_REUSE.md)
+passes 1,114 units per profile, 4,470 retained-original comparisons and 4,032 C queries. A nested replay case
+improves from 1.08 seconds to 144 ms, with unchanged memory peaks; ordinary sequential controls have unchanged
+read/work counts. This does not retain cursors or raw history between acquisitions.
+
+The [live comparison](matrix-page-reuse-live.json) records **351/360 successes before and 350/360 after**.
+The same nine long-history requests time out. The concurrent fixed-top-ten application disk-I/O panel changes
+from 23.41 seconds to a 25.13-second timeout; it also timed out in earlier captures of the unchanged preceding
+runtime. The cause of this transition is not established. Fleet batch time is 179.40 versus 179.93 seconds,
+and the median successful-pair elapsed ratio is 1.038. No overall live speedup is established.
+
+All 350 successful pairs retain labels, timestamps, counts and diagnostics. Unordered results match in 348 pairs.
+The remaining two averages differ at 21 points by at most two floating-point units in the last place. Unchanged
+inner values evaluated in each run's observed host order reproduce all points exactly. Metadata loading after
+restart remains an inferred cause of the ordering change.
+
+Installation and persistent configuration checks pass. Grafana returns 79 frames; all 18 common observed CPU
+hosts advance. Both services are active with 40 GiB free at deployment verification. Counter reconstruction
+across separate cursors, long-history/concurrent latency and histogram exposure remain open. The next counter
+checkpoint experiment is local work and is not included in this deployment.
+
 ## Follow-up: label-comparison control checks — 2026-10-29
 
-Runtime `2c49941745` is installed. Shared byte comparisons now avoid an immediate duplicate entry check while
+Runtime `2c49941745` was installed for this comparison. Shared byte comparisons now avoid an immediate duplicate entry check while
 retaining entry and subsequent-chunk interruption. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/LABEL_COMPARISON.md)
 finds 4–9% improvements in representative release-profile joins, mixed results elsewhere, and no tracked query-memory
 increase. Both profiles pass 1,112 unit tests; all 672 measured C executions preserve outputs and resource counters.
