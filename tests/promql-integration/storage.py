@@ -202,7 +202,9 @@ def main():
                 receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
                 if phase == "journal-order":
                     cases = [row for row in rows if "journal_order_case" in row]
-                    if (result or len(rows) != 4 or len(cases) != 3
+                    page_cases = [row for row in rows if "journal_page_case" in row]
+                    if (result or len(rows) != 5 or len(cases) != 3 or len(page_cases) != 1
+                            or page_cases[0]["journal_page_case"] != "selection-expiry" or page_cases[0]["checks"] != 11
                             or {row["journal_order_case"] for row in cases} != {"unchecked", "checked", "demand"}
                             or any(row["errors"] for row in rows)
                             or any(row.get("found", 1) != 1 for row in cases)):

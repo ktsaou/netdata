@@ -94,19 +94,17 @@ static bool journal_metric_overlaps(struct rrdengine_journalfile *journal,
         return false;
     uint64_t base = header->start_time_ut / USEC_PER_SEC;
     uint32_t lo = 0, hi = metric->entries;
-    struct journal_page_list page;
+    struct journal_page_list page = {0}, probe;
     while(lo < hi) {
         uint32_t mid = lo + (hi - lo) / 2;
-        if(!journal_copy(journal, offset + (size_t)mid * sizeof(page), &page, sizeof(page)))
+        if(!journal_copy(journal, offset + (size_t)mid * sizeof(probe), &probe, sizeof(probe)))
             return false;
-        if(base + page.delta_end_s < (uint64_t)first) lo = mid + 1;
-        else hi = mid;
+        if(base + probe.delta_end_s < (uint64_t)first) lo = mid + 1;
+        else { hi = mid; page = probe; }
     }
-    if(lo < metric->entries) {
-        if(!journal_copy(journal, offset + (size_t)lo * sizeof(page), &page, sizeof(page)))
-            return false;
+    // The last probe can be below the selected right bound.
+    if(lo < metric->entries)
         *overlaps = base + page.delta_start_s <= (uint64_t)last;
-    }
     return true;
 }
 
@@ -341,19 +339,17 @@ static bool journal_candidate(RRDENG_READER *reader, struct rrdengine_datafile *
     reader->verified_page = metric.page_offset;
     time_t base = header.start_time_ut / USEC_PER_SEC;
     uint32_t lo = 0, hi = metric.entries;
-    struct journal_page_list page;
+    struct journal_page_list page = {0}, probe;
     while(lo < hi) {
         if(!rrdeng_read_operation_poll(operation) ||
-           !journal_copy(journal, offset + (size_t)(lo + (hi - lo) / 2) * sizeof(page), &page, sizeof(page)))
+           !journal_copy(journal, offset + (size_t)(lo + (hi - lo) / 2) * sizeof(probe), &probe, sizeof(probe)))
             return false;
         uint32_t mid = lo + (hi - lo) / 2;
-        if((uint64_t)base + page.delta_end_s < (uint64_t)minimum) lo = mid + 1;
-        else hi = mid;
+        if((uint64_t)base + probe.delta_end_s < (uint64_t)minimum) lo = mid + 1;
+        else { hi = mid; page = probe; }
     }
     if(lo == metric.entries)
         return true;
-    if(!journal_copy(journal, offset + (size_t)lo * sizeof(page), &page, sizeof(page)))
-        return false;
     uint64_t first = (uint64_t)base + page.delta_start_s, last = (uint64_t)base + page.delta_end_s;
     if((time_t)first < 0 || (uint64_t)(time_t)first != first ||
        (time_t)last < 0 || (uint64_t)(time_t)last != last || first > last ||

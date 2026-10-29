@@ -622,3 +622,7 @@ Two failed qualification steps remain visible: a final-probe cancellation test b
 and an orchestration overwrite guard that preserved an existing baseline. The final measurements use verified
 candidate32 baseline binaries and candidate33 experimental binaries; an older candidate32-labelled diagnostic
 capture had used candidate31 and is not the causal baseline for this comparison.
+
+The [journal page search optimization](JOURNAL_PAGE_SEARCH.md) retains the selected
+right-bound descriptor instead of reading it twice, with selection/expiry tests
+and isolated measurements.
