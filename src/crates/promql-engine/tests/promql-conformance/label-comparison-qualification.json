@@ -1,0 +1,4000 @@
+{
+  "schema": 1,
+  "date": "2026-10-29",
+  "baseline_commit": "d9e661e1d6",
+  "sources": {
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "fc92d3f2cff03975b16ef5d1403e4927a83b46c1ba0b914b6414966195cd23a8",
+    "src/crates/promql-engine/src/aggregate_replay.rs": "9c09fdc5092f3f37f9a4d47b7a3eee23903451ae37dbd6fe3ecf85a3c7ca9707",
+    "src/crates/promql-engine/src/aggregation.rs": "2d5b6cc5381eecc4c717b52b24adf4906fb21571c073e443388cbb9ddb859bb6",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "69912e8872cc0ce1a841390c703f9f9ff13cef9a3c2f4f046f3e681ea436d312",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "43c9bb6af047d136fb0d544ae121c25d00e1b685f52552a5ddc84d00d93d4083",
+    "src/crates/promql-engine/src/binary_value.rs": "0d953d8182d81691de3951e7722366b21ea75b6941810cecb68759700ab2ea34",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "89f734b6d4ae9e23816c02c7d32b088878984f82dbd07276fb1900ac2afe0796",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "8852b77f9f3ba87b29c14aca6797bedd0a66b2d0a0ec396ad3b66498610b2e29",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "a69ed5c815cbf78d95323cefc1a8efe7a819871ed63560e04686565dce7390c0",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "e311ea2aa775d79ce5d94cfd6e6b83f777307ef61ef092ace38b8e84803d23ed",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/output_points.rs": "8f6e8d0c2f28e536d2258b88c975711415cbe68fd8c2ed5ad3f645fe2fc9a472",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "4d8b4a8b1284af0025d25512541add905f4c0a1d1ce23ecb31ab4725389040fe",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "1dc792ad5cc64c9eb24051afed3ddf115179730f137ba781b5906e8cfccf53c0",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "226848b6c629692e0ad65f02e5394610bd8bc47db491d3f1dc0e20c53a74960a",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "dfc250c0ba0b13984e541e0a4793aef6b67d16059ebabb7fb2f52628d0cf3b78",
+    "src/crates/promql-engine/src/computed_group_tests.rs": "90ab892140620f7769a6dc927aa5da3b78ad23e407e5379d9d0357f14c5d11ab",
+    "src/crates/promql-engine/src/computed_groups.rs": "2513daf1aeff1176fcfb4f4026a5c1d823d534093a061b97135cf4e9320f0183",
+    "src/crates/promql-engine/src/count_values.rs": "bf76a5e55ab966a326504e34253beadcea5a538bde92397f6e2d07b21aabc9c9",
+    "src/crates/promql-engine/src/count_windows.rs": "2b5b19de9ccf9389c10cf8424a98f2c40e86e3410af79e7ef13447756b937874",
+    "src/crates/promql-engine/src/derived_matrix.rs": "d2266df002da799c20cf6aec14899838773fcb6bc1f825385dd01fcf88404fee",
+    "src/crates/promql-engine/src/derived_progress.rs": "b074082bfc21eb34da9bac8469357f83c75825a22de5396500a6d2569850dbeb",
+    "src/crates/promql-engine/src/derived_range.rs": "e0490aecd0c43e224efae3d688944e6276d2f5d41e6c9bcf2e96cb1f02f60e8e",
+    "src/crates/promql-engine/src/evaluator.rs": "1ec5bd6dafda11e11e9dfa7cadaad6d430ab6432032f28090fa80c568a9e2df0",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "f1fb6de41fd4a2dd5dfc8b574b37e0581763893c2696a005c6e67f6a6330ce7a",
+    "src/crates/promql-engine/src/execution.rs": "63853f72ce40dded43f2183bd40bd9f2f0983b080dec11b2a3d23c4e3cbe9fdb",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "2467face12149acc1a2b7ebc307ce1c31a27646651b3fa613a6a93d5a2dc9e8e",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "1ee47e3904cd5e706340802f0560f11327abe59267866395f8712ed8d78100d2",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "315b114bb8f0316df5679cd24b8e0b73b621c27430a527504fc4ad70936cf9c8",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "6118d260789de94f9e9d0bfa9fcf858c352e7cc9110acc52a17765f5d0744fbc",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "d3b75b822de67cde42c1a23f3226fd66258557a03dfe0c471c733ada0cec5087",
+    "src/crates/promql-engine/src/instant_select.rs": "8e8111fc9a23c0645ea31614f458a2960d92104d8d3cd99ef91e1727bf6b98b0",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "c6400e9b8cc2258d24346713a769701b4ad7dddfb8ed7f4299c926e5b46880f4",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "4aa83ea74c927b0eb57d5dbb5e87f5814dc0ee89220dd6916ead2dbaefd1dffc",
+    "src/crates/promql-engine/src/lib.rs": "bc1aaa00053502503b2e4b2f8075c3a7c6ed26b37d049bacf4e6abcde39d8363",
+    "src/crates/promql-engine/src/lookup_tests.rs": "fee64cf7682590f1170210052e2015095d32a5bb715398d05340daa2027417a0",
+    "src/crates/promql-engine/src/mad.rs": "042f323d8456a95c2bd0db87d1784e11b014ef2376f1b5fb13a8623a5381317e",
+    "src/crates/promql-engine/src/matrix_heads.rs": "13da507217250efd2687511c6bde7a6225b6148f41c32ec7ef19fec99376e643",
+    "src/crates/promql-engine/src/matrix_reader.rs": "1e3331a195b89f3f1eacb9a37a44306e6d1fe79257670ec628b0f3dc39808d37",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/pair_discovery.rs": "d6597d55938509311bd97a549236255e3da8bfa6ad58039e866fed69a8bac0a6",
+    "src/crates/promql-engine/src/position_index.rs": "52ac34e5b0269eec4d077f4e42f53641f386737688e74d0400e2899986719f4e",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "638ee18593023f3d061d35a11e84846058f28652562e2d650f372a8fbbd194bd",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "f5e4fd8144feeac75e6a0603c38d45bccc8cae61f2c95429451ab04631110458",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "508b51b31593648b81aad26b8595a89ba2456a5c33718db251b1ee7b05633e10",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "0f29c5996c570c3917ff0bc2c2bed9201b08ca7da9fab93b63f5030c1e9bf160",
+    "src/crates/promql-engine/src/range_numeric.rs": "6dd50fbb89d492632c6548322aa3e3d129da27fe9beb6584977862998454aabb",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "16f944188351b3cd2f910d12f8265c998a44ffc80cf3f8dbcfeaf88d7e2047a1",
+    "src/crates/promql-engine/src/range_rates.rs": "eaa5e39f6adaf5eefff906257834f9cfa94abde8fb73b235044a8a38cc963676",
+    "src/crates/promql-engine/src/range_reduce.rs": "09b7bd914929358fef7b4047d306c7ce5bfde133fbf92069c1a70fdc395cfd31",
+    "src/crates/promql-engine/src/result.rs": "ab6196f9b5f383b971fe40486ca0f5f6d95f9d42a4cb4c906b424f4355144aff",
+    "src/crates/promql-engine/src/sample_labels.rs": "d057d370077ca1cf0ae146a875bf4d06b62fc3388af9de02fc3aad09fee2f26a",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "d4f4131213cc4bfd404a932706d458f8f07745213e47d64e0e88b569e1d6b1a4",
+    "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "f122c40919f18f77bb1b4cfa65aa707ebca0fbfb79858f74ea9c3adebd1392d9",
+    "src/crates/promql-engine/src/storage.rs": "1b651d8f44de75e0a793992280c564a50b2a0b460bab6dfe29095d3a97efccaa",
+    "src/crates/promql-engine/src/storage_observed.rs": "9d40586645d00eeb26a99dc379facb6830727934545082f6fa169b43612027c9",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "0b9148bd93be04b8548723ed2f405e6ddd16789e07c7d578e26e09e9e392fc5d",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "b46eae6ad8b7c6ed7f354fcaa58d73be4f55587f4a7215c4a40c610dda40b2ff",
+    "src/crates/promql-engine/src/test_storage.rs": "6ff4404943c6cb7903eadad02acdad93fb3e24d39bb3be94bb6f3320f8672b1f",
+    "src/crates/promql-engine/src/topk.rs": "e0b743caef9c293946583eb716012ca604e456484c3f825d4122fb407038a826",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "7535569f2261604a526e43851b115677aab71e05ec98eb0dc160a600425d7c43",
+    "src/crates/promql-engine/src/vector_sort.rs": "5f43836b63d64e051969c1fbf9bba0ba5480b0ea704d8d322de604b881092788",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/include/netdata-promql.h": "76f22ed64870e0fb06c5b87f4862b13d9687a924fa8e5307315cdda3a1416a68",
+    "src/crates/promql-engine/tests/promql-conformance/label_comparison.c": "4b1966f12d84a733aeb8df6cee8e80b4793deaf1812cabd36c8dda365d16ad5f",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "47c5521f30995d51fb701e7e1a725cbc57f0554354d6940ae5691fc7ea660d3d"
+  },
+  "baseline_sources": {
+    "src/crates/promql-engine/src/absence.rs": "5daad198a2b483ef9c32557667c47005b2c275359128ed0e2d08741a562a28c3",
+    "src/crates/promql-engine/src/accounting.rs": "fc92d3f2cff03975b16ef5d1403e4927a83b46c1ba0b914b6414966195cd23a8",
+    "src/crates/promql-engine/src/aggregate_replay.rs": "9c09fdc5092f3f37f9a4d47b7a3eee23903451ae37dbd6fe3ecf85a3c7ca9707",
+    "src/crates/promql-engine/src/aggregation.rs": "2d5b6cc5381eecc4c717b52b24adf4906fb21571c073e443388cbb9ddb859bb6",
+    "src/crates/promql-engine/src/annotations.rs": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+    "src/crates/promql-engine/src/annotations_fixture.rs": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+    "src/crates/promql-engine/src/bin/protocol_fixture.rs": "c8f25d3f42c272f0273e88a7a6e8937e9cbf634fe9d115c0ec244cad3770b33f",
+    "src/crates/promql-engine/src/bin/query_fixture.rs": "69912e8872cc0ce1a841390c703f9f9ff13cef9a3c2f4f046f3e681ea436d312",
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+    "src/crates/promql-engine/src/binary_labels.rs": "0be04c9f34b07ed90859fd3d592c9fa22de0e84c4c8e00fe8b8fb36bab128a82",
+    "src/crates/promql-engine/src/binary_value.rs": "0d953d8182d81691de3951e7722366b21ea75b6941810cecb68759700ab2ea34",
+    "src/crates/promql-engine/src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+    "src/crates/promql-engine/src/c_abi/discovery.rs": "d2bac683aa0effe094123a5e3021416172c7a36be0c4333c16cd2dc943078546",
+    "src/crates/promql-engine/src/c_abi/getters.rs": "4c963e7b5ff4b8d8e58aa32c740742dd0dc6ad5f88b45f834350da7410a78219",
+    "src/crates/promql-engine/src/c_abi/histogram.rs": "5ec4f3a0f2b2e03bdb2f5666ad23a2717e6e41f8a4208af464355615d1f7b991",
+    "src/crates/promql-engine/src/c_abi/mod.rs": "89f734b6d4ae9e23816c02c7d32b088878984f82dbd07276fb1900ac2afe0796",
+    "src/crates/promql-engine/src/c_abi/observations.rs": "d2d7b3f2917c0ff9349bb0ae823ec16f056e829bf1bbd32a28c3587d56416c43",
+    "src/crates/promql-engine/src/c_abi/output.rs": "8852b77f9f3ba87b29c14aca6797bedd0a66b2d0a0ec396ad3b66498610b2e29",
+    "src/crates/promql-engine/src/c_abi/protocol.rs": "516b34001157c5d95ec560f10b8431e6780acb277be0ca3186ffc3681c838818",
+    "src/crates/promql-engine/src/c_abi/provider.rs": "a69ed5c815cbf78d95323cefc1a8efe7a819871ed63560e04686565dce7390c0",
+    "src/crates/promql-engine/src/c_abi/selection.rs": "d0cd80bc3230771468a1468acf7582a4606fba1aef3125eb0f5d627c0e74a9ac",
+    "src/crates/promql-engine/src/c_abi/sort.rs": "dfc849b2322846fd3decf2d22868967d97ab547706b1aa7edcf613c7ba048713",
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": "e9d3e9e3fd688134d190b1aa121ec295eef06cacc0626062614a202acc3e4e4b",
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": "e311ea2aa775d79ce5d94cfd6e6b83f777307ef61ef092ace38b8e84803d23ed",
+    "src/crates/promql-engine/src/c_abi/tests/discovery.rs": "40f01a20d299c85a9edd3b65420d5c737087bfcabf7a8ba1411fb3f7e31075e6",
+    "src/crates/promql-engine/src/c_abi/tests/output_points.rs": "8f6e8d0c2f28e536d2258b88c975711415cbe68fd8c2ed5ad3f645fe2fc9a472",
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": "4d8b4a8b1284af0025d25512541add905f4c0a1d1ce23ecb31ab4725389040fe",
+    "src/crates/promql-engine/src/c_abi/tests/precision.rs": "8c8bfc87fbe8a9b30963aaa90531779079892973df96beb78a668181d0389031",
+    "src/crates/promql-engine/src/c_abi/tests/protocol.rs": "a69f61f41afe6866fc4b0ea44a922905895ed473c31cb6673e3b2a4f6f8f3cd6",
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": "1dc792ad5cc64c9eb24051afed3ddf115179730f137ba781b5906e8cfccf53c0",
+    "src/crates/promql-engine/src/c_abi/tests.rs": "226848b6c629692e0ad65f02e5394610bd8bc47db491d3f1dc0e20c53a74960a",
+    "src/crates/promql-engine/src/c_abi/types.rs": "edad27c7d9bff14fd57d4737a8f493a66ec3cac9a033433679b19f0fc3319109",
+    "src/crates/promql-engine/src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+    "src/crates/promql-engine/src/classic_mutation.rs": "95107cd4efd9ad777adb6bf5f94eae2f54d732b6b7e8fec587a476eabd5bf51f",
+    "src/crates/promql-engine/src/classic_replay.rs": "dfc250c0ba0b13984e541e0a4793aef6b67d16059ebabb7fb2f52628d0cf3b78",
+    "src/crates/promql-engine/src/computed_group_tests.rs": "90ab892140620f7769a6dc927aa5da3b78ad23e407e5379d9d0357f14c5d11ab",
+    "src/crates/promql-engine/src/computed_groups.rs": "2513daf1aeff1176fcfb4f4026a5c1d823d534093a061b97135cf4e9320f0183",
+    "src/crates/promql-engine/src/count_values.rs": "bf76a5e55ab966a326504e34253beadcea5a538bde92397f6e2d07b21aabc9c9",
+    "src/crates/promql-engine/src/count_windows.rs": "2b5b19de9ccf9389c10cf8424a98f2c40e86e3410af79e7ef13447756b937874",
+    "src/crates/promql-engine/src/derived_matrix.rs": "d2266df002da799c20cf6aec14899838773fcb6bc1f825385dd01fcf88404fee",
+    "src/crates/promql-engine/src/derived_progress.rs": "b074082bfc21eb34da9bac8469357f83c75825a22de5396500a6d2569850dbeb",
+    "src/crates/promql-engine/src/derived_range.rs": "e0490aecd0c43e224efae3d688944e6276d2f5d41e6c9bcf2e96cb1f02f60e8e",
+    "src/crates/promql-engine/src/evaluator.rs": "1ec5bd6dafda11e11e9dfa7cadaad6d430ab6432032f28090fa80c568a9e2df0",
+    "src/crates/promql-engine/src/evaluator_order.rs": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+    "src/crates/promql-engine/src/evaluator_roster.rs": "f1fb6de41fd4a2dd5dfc8b574b37e0581763893c2696a005c6e67f6a6330ce7a",
+    "src/crates/promql-engine/src/execution.rs": "63853f72ce40dded43f2183bd40bd9f2f0983b080dec11b2a3d23c4e3cbe9fdb",
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": "2467face12149acc1a2b7ebc307ce1c31a27646651b3fa613a6a93d5a2dc9e8e",
+    "src/crates/promql-engine/src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+    "src/crates/promql-engine/src/float_text.rs": "193961dbe02726b6b0b149dd6176f48209e5bd2c27d8b658eda861d79450aab1",
+    "src/crates/promql-engine/src/frontend/ast.rs": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+    "src/crates/promql-engine/src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+    "src/crates/promql-engine/src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+    "src/crates/promql-engine/src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+    "src/crates/promql-engine/src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+    "src/crates/promql-engine/src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+    "src/crates/promql-engine/src/frontend/http.rs": "a019e27b1c3c64df29c2ecea4534566ea6d2afecb4a3273aca6be850c7c4db10",
+    "src/crates/promql-engine/src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+    "src/crates/promql-engine/src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+    "src/crates/promql-engine/src/frontend/mod.rs": "189af6f5c11d5fd642838336aa1e151747fe6ae5bcd26f0e92a093cac82e41a2",
+    "src/crates/promql-engine/src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+    "src/crates/promql-engine/src/frontend/parser.rs": "4f28e14f2a07a4764f2cc74a742cae45df9f0ba3b65828f92e3b01c97b112a25",
+    "src/crates/promql-engine/src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+    "src/crates/promql-engine/src/frontend/regex.rs": "95daa6087f809abed527abc79feb14d6f0840305e591b01e0a56a17ff30e57b1",
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": "999ce150ebbbbd26d0e3c90fb9c08a1a8dfe2979abd1267edf2b3e9ebf034f91",
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+    "src/crates/promql-engine/src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": "1749038f7bd462c24d1f146e6ce31025eeb6d101015a9cf2349d6f2a7027bfd2",
+    "src/crates/promql-engine/src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+    "src/crates/promql-engine/src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+    "src/crates/promql-engine/src/frontend/unicode.rs": "7962765d92cfe48c40e65dab35cf98f9b271f739252df700c60f61000b7ff401",
+    "src/crates/promql-engine/src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+    "src/crates/promql-engine/src/frontend/work.rs": "1ee47e3904cd5e706340802f0560f11327abe59267866395f8712ed8d78100d2",
+    "src/crates/promql-engine/src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+    "src/crates/promql-engine/src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+    "src/crates/promql-engine/src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+    "src/crates/promql-engine/src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": "315b114bb8f0316df5679cd24b8e0b73b621c27430a527504fc4ad70936cf9c8",
+    "src/crates/promql-engine/src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+    "src/crates/promql-engine/src/histogram_call.rs": "6118d260789de94f9e9d0bfa9fcf858c352e7cc9110acc52a17765f5d0744fbc",
+    "src/crates/promql-engine/src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+    "src/crates/promql-engine/src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+    "src/crates/promql-engine/src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+    "src/crates/promql-engine/src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+    "src/crates/promql-engine/src/histogram_iterator.rs": "f423bb204eba2c8bac69adbb7a3e86a83b6016463b7154ac3eb07a9edf9bab3f",
+    "src/crates/promql-engine/src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+    "src/crates/promql-engine/src/histogram_stats.rs": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+    "src/crates/promql-engine/src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+    "src/crates/promql-engine/src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+    "src/crates/promql-engine/src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+    "src/crates/promql-engine/src/info.rs": "d3b75b822de67cde42c1a23f3226fd66258557a03dfe0c471c733ada0cec5087",
+    "src/crates/promql-engine/src/instant_select.rs": "8e8111fc9a23c0645ea31614f458a2960d92104d8d3cd99ef91e1727bf6b98b0",
+    "src/crates/promql-engine/src/instant_statistics.rs": "c661fefa845c907e88f0b8652ac83252985276e91d872ae2b5be78a4041f61bc",
+    "src/crates/promql-engine/src/label_encoding.rs": "c6400e9b8cc2258d24346713a769701b4ad7dddfb8ed7f4299c926e5b46880f4",
+    "src/crates/promql-engine/src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+    "src/crates/promql-engine/src/label_functions.rs": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+    "src/crates/promql-engine/src/label_hash.rs": "4aa83ea74c927b0eb57d5dbb5e87f5814dc0ee89220dd6916ead2dbaefd1dffc",
+    "src/crates/promql-engine/src/lib.rs": "bc1aaa00053502503b2e4b2f8075c3a7c6ed26b37d049bacf4e6abcde39d8363",
+    "src/crates/promql-engine/src/lookup_tests.rs": "fee64cf7682590f1170210052e2015095d32a5bb715398d05340daa2027417a0",
+    "src/crates/promql-engine/src/mad.rs": "042f323d8456a95c2bd0db87d1784e11b014ef2376f1b5fb13a8623a5381317e",
+    "src/crates/promql-engine/src/matrix_heads.rs": "13da507217250efd2687511c6bde7a6225b6148f41c32ec7ef19fec99376e643",
+    "src/crates/promql-engine/src/matrix_reader.rs": "1e3331a195b89f3f1eacb9a37a44306e6d1fe79257670ec628b0f3dc39808d37",
+    "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+    "src/crates/promql-engine/src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+    "src/crates/promql-engine/src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+    "src/crates/promql-engine/src/pair_discovery.rs": "d6597d55938509311bd97a549236255e3da8bfa6ad58039e866fed69a8bac0a6",
+    "src/crates/promql-engine/src/position_index.rs": "52ac34e5b0269eec4d077f4e42f53641f386737688e74d0400e2899986719f4e",
+    "src/crates/promql-engine/src/quantile_aggregate.rs": "638ee18593023f3d061d35a11e84846058f28652562e2d650f372a8fbbd194bd",
+    "src/crates/promql-engine/src/query_bounds.rs": "85c0bbb255cc49ffe70c87252c66054d1f9559cc35a44995c2ac80174583277b",
+    "src/crates/promql-engine/src/query_catalog.rs": "f5e4fd8144feeac75e6a0603c38d45bccc8cae61f2c95429451ab04631110458",
+    "src/crates/promql-engine/src/query_preparation.rs": "11dfc7c8a8f7e02f525c794e5d5bb881ede342826baf69742d55429eb1409ce7",
+    "src/crates/promql-engine/src/query_scopes.rs": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+    "src/crates/promql-engine/src/query_time.rs": "3712c27d9d903594ab3f4a832900df009f46a63d82c9bf1b4e6d9dcebb408302",
+    "src/crates/promql-engine/src/range_cache.rs": "508b51b31593648b81aad26b8595a89ba2456a5c33718db251b1ee7b05633e10",
+    "src/crates/promql-engine/src/range_extended.rs": "1cbe54afcb027961091983b15f7746028606f9ca37e2e759356357ab9c5aa916",
+    "src/crates/promql-engine/src/range_float.rs": "0f29c5996c570c3917ff0bc2c2bed9201b08ca7da9fab93b63f5030c1e9bf160",
+    "src/crates/promql-engine/src/range_numeric.rs": "6dd50fbb89d492632c6548322aa3e3d129da27fe9beb6584977862998454aabb",
+    "src/crates/promql-engine/src/range_quantile_rank.rs": "16f944188351b3cd2f910d12f8265c998a44ffc80cf3f8dbcfeaf88d7e2047a1",
+    "src/crates/promql-engine/src/range_rates.rs": "eaa5e39f6adaf5eefff906257834f9cfa94abde8fb73b235044a8a38cc963676",
+    "src/crates/promql-engine/src/range_reduce.rs": "09b7bd914929358fef7b4047d306c7ce5bfde133fbf92069c1a70fdc395cfd31",
+    "src/crates/promql-engine/src/result.rs": "ab6196f9b5f383b971fe40486ca0f5f6d95f9d42a4cb4c906b424f4355144aff",
+    "src/crates/promql-engine/src/sample_labels.rs": "d057d370077ca1cf0ae146a875bf4d06b62fc3388af9de02fc3aad09fee2f26a",
+    "src/crates/promql-engine/src/scheduled_expression.rs": "d4f4131213cc4bfd404a932706d458f8f07745213e47d64e0e88b569e1d6b1a4",
+    "src/crates/promql-engine/src/scheduled_output.rs": "39ec08bc49800551bca460de854fcb8a92fc0f85f83bb48e86e0183aa11c931e",
+    "src/crates/promql-engine/src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+    "src/crates/promql-engine/src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+    "src/crates/promql-engine/src/statistics.rs": "f122c40919f18f77bb1b4cfa65aa707ebca0fbfb79858f74ea9c3adebd1392d9",
+    "src/crates/promql-engine/src/storage.rs": "1b651d8f44de75e0a793992280c564a50b2a0b460bab6dfe29095d3a97efccaa",
+    "src/crates/promql-engine/src/storage_observed.rs": "9d40586645d00eeb26a99dc379facb6830727934545082f6fa169b43612027c9",
+    "src/crates/promql-engine/src/temporal_quantile.rs": "0b9148bd93be04b8548723ed2f405e6ddd16789e07c7d578e26e09e9e392fc5d",
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+    "src/crates/promql-engine/src/temporary_float_bits.rs": "b46eae6ad8b7c6ed7f354fcaa58d73be4f55587f4a7215c4a40c610dda40b2ff",
+    "src/crates/promql-engine/src/test_storage.rs": "6ff4404943c6cb7903eadad02acdad93fb3e24d39bb3be94bb6f3320f8672b1f",
+    "src/crates/promql-engine/src/topk.rs": "e0b743caef9c293946583eb716012ca604e456484c3f825d4122fb407038a826",
+    "src/crates/promql-engine/src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+    "src/crates/promql-engine/src/vector_matching.rs": "7535569f2261604a526e43851b115677aab71e05ec98eb0dc160a600425d7c43",
+    "src/crates/promql-engine/src/vector_sort.rs": "5f43836b63d64e051969c1fbf9bba0ba5480b0ea704d8d322de604b881092788",
+    "src/crates/promql-engine/Cargo.toml": "777f56de706d980a0555b6e94190c891207c03e80f0b1b2c6002664e201ab688",
+    "src/crates/promql-engine/Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+    "src/crates/promql-engine/include/netdata-promql.h": "76f22ed64870e0fb06c5b87f4862b13d9687a924fa8e5307315cdda3a1416a68",
+    "src/crates/promql-engine/tests/promql-conformance/label_comparison.c": "4b1966f12d84a733aeb8df6cee8e80b4793deaf1812cabd36c8dda365d16ad5f",
+    "src/crates/promql-engine/tests/promql-conformance/c_embedding.c": "47c5521f30995d51fb701e7e1a725cbc57f0554354d6940ae5691fc7ea660d3d",
+    "src/crates/promql-engine/tests/promql-conformance/comparison_sets.c": "b1addd603e3b6b18833667caae34c08739e989fb7e6be08dabb16b94b79a7374"
+  },
+  "candidate_binaries": {
+    "candidate-release": {
+      "file": "label45-candidate-release",
+      "sha256": "996687c1df371ed55ca2c7596e8c496b5a7fd5ab5b00768a84670365b9b28536",
+      "library_sha256": "9cdb325aa759f27417df0cadb8571c7d9fb5d3e4335cfe272f1e4ae3093f80b4"
+    },
+    "embedding-release": {
+      "file": "label45-embedding-release",
+      "sha256": "d0a7541290941b7d9358ae1de540d8f08ff15af67743873db70dbc86a9eaf1de",
+      "library_sha256": "9cdb325aa759f27417df0cadb8571c7d9fb5d3e4335cfe272f1e4ae3093f80b4"
+    },
+    "candidate-release-min": {
+      "file": "label45-candidate-release-min",
+      "sha256": "bc63081974cdb7f9174e9da2e4aeba27ea0c644d32d00b911070eacb0bad47cc",
+      "library_sha256": "c909bdb11421685737f82e1372ff081fea7f4092d8a48ea1f7d3e0edca9d56fd"
+    },
+    "embedding-release-min": {
+      "file": "label45-embedding-release-min",
+      "sha256": "5154eff9be55ebf74a10f4600377d1d37c70a36aa84fd9ed63a4c9c72dd15a04",
+      "library_sha256": "c909bdb11421685737f82e1372ff081fea7f4092d8a48ea1f7d3e0edca9d56fd"
+    }
+  },
+  "baseline_binaries": {
+    "release": {
+      "file": "label45fresh-base-release",
+      "sha256": "6b8434d4b2d30919649e28b3383278a3faeb8aa521ccd178df4f5dff59bdbc3a",
+      "library_sha256": "af778a8d88b1b406ae78ddbcb4dcd74a72392c906e018b45e3b9631c7cb9f3b0"
+    },
+    "count44repair-release-gcc": {
+      "file": "count44repair-release-gcc",
+      "sha256": "951fbf5fd45ba3878d98a6d69b3c2319bb606dc626cc0abd69be8439f28865fa",
+      "library_sha256": "af778a8d88b1b406ae78ddbcb4dcd74a72392c906e018b45e3b9631c7cb9f3b0"
+    },
+    "count44repair-release-gpp": {
+      "file": "count44repair-release-gpp",
+      "sha256": "5e63a1a242965cf4affb9f68f6a0a9b97b5f53f3f02db42f8dc696a3bde5b1b6",
+      "library_sha256": "af778a8d88b1b406ae78ddbcb4dcd74a72392c906e018b45e3b9631c7cb9f3b0"
+    },
+    "count44repair-release-clang": {
+      "file": "count44repair-release-clang",
+      "sha256": "5fde38733c08952821b3f1c20976a369f1cee7f8273de18cf3897020dad8e7cb",
+      "library_sha256": "af778a8d88b1b406ae78ddbcb4dcd74a72392c906e018b45e3b9631c7cb9f3b0"
+    },
+    "count44repair-release-clangpp": {
+      "file": "count44repair-release-clangpp",
+      "sha256": "e3def759518c43e06093174fbfce64a21e344ad7bf005b7da067fd2a8bcd6d40",
+      "library_sha256": "af778a8d88b1b406ae78ddbcb4dcd74a72392c906e018b45e3b9631c7cb9f3b0"
+    },
+    "release-min": {
+      "file": "label45fresh-base-release-min",
+      "sha256": "95cc0223afa40a7ac52b67a46c3e72a46a117dffce088ad572e90a7a217949e0",
+      "library_sha256": "aa7656b1f79a4a0b44a9f50749dcca260cb9ca38574815327125c99969d5fd91"
+    },
+    "count44repair-release-min-gcc": {
+      "file": "count44repair-release-min-gcc",
+      "sha256": "c2dd685e21e84917c6ed341ca27164ff24eea6deb32eeb77c7456f922b991bb6",
+      "library_sha256": "aa7656b1f79a4a0b44a9f50749dcca260cb9ca38574815327125c99969d5fd91"
+    },
+    "count44repair-release-min-gpp": {
+      "file": "count44repair-release-min-gpp",
+      "sha256": "acb0bdaee6a1e168e62638aceb7e1c6b8c55b6da0a7ff3fa3e2cd4cba56f44a7",
+      "library_sha256": "aa7656b1f79a4a0b44a9f50749dcca260cb9ca38574815327125c99969d5fd91"
+    },
+    "count44repair-release-min-clang": {
+      "file": "count44repair-release-min-clang",
+      "sha256": "9463f686583f8b45105333a181c35dca5383982f8a6de39a4da65891c771b21d",
+      "library_sha256": "aa7656b1f79a4a0b44a9f50749dcca260cb9ca38574815327125c99969d5fd91"
+    },
+    "count44repair-release-min-clangpp": {
+      "file": "count44repair-release-min-clangpp",
+      "sha256": "d1c57e7a8c6b6a55917384456af1697092a52e42de50a9cd7c09d91fd1c42e59",
+      "library_sha256": "aa7656b1f79a4a0b44a9f50749dcca260cb9ca38574815327125c99969d5fd91"
+    }
+  },
+  "unit_tests": {
+    "release": {
+      "passed": 1112,
+      "failed": 0,
+      "ignored": 2,
+      "stdout_sha256": "81099841b4b16b7271f39b5939f85d154a1ca43a26c15e82f10adf014f468490"
+    },
+    "release-min": {
+      "passed": 1112,
+      "failed": 0,
+      "ignored": 2,
+      "stdout_sha256": "7db03c7b23efc88dd430470db740af1a27661e32ad134e6366d22397d5436b3b"
+    }
+  },
+  "queries": 672,
+  "paired_blocks": 336,
+  "warmup_block": 0,
+  "measured_pairs": 280,
+  "resources_identical": true,
+  "c_caller_size": {
+    "release": {
+      "baseline": {
+        "text": 7972189,
+        "data": 518584,
+        "bss": 400
+      },
+      "candidate": {
+        "text": 7972301,
+        "data": 518584,
+        "bss": 400
+      }
+    },
+    "release-min": {
+      "baseline": {
+        "text": 5526020,
+        "data": 477392,
+        "bss": 400
+      },
+      "candidate": {
+        "text": 5526164,
+        "data": 477392,
+        "bss": 400
+      }
+    }
+  },
+  "capture": {
+    "file": "label-comparison-observations.jsonl.gz",
+    "sha256": "a9dd09fefb59bcf06705944c65ce9b1ee4ea04e69ebd1ec7c8f611bcf209aec0"
+  },
+  "comparisons": [
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 16,
+      "deadline": 0,
+      "op": 0,
+      "baseline_median_ns": 397176,
+      "candidate_median_ns": 371846,
+      "paired_median_ratio": 0.9985472102946665,
+      "work": 9935,
+      "fetched": 256,
+      "calls": 32,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          19160,
+          65048,
+          65048
+        ],
+        [
+          12304,
+          13072,
+          25744,
+          13440
+        ],
+        [
+          0,
+          593,
+          4737,
+          4737
+        ],
+        [
+          0,
+          544,
+          8192,
+          8192
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          56,
+          56
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 16,
+      "deadline": 0,
+      "op": 1,
+      "baseline_median_ns": 8123535,
+      "candidate_median_ns": 8132715,
+      "paired_median_ratio": 0.9942858620046569,
+      "work": 1000453,
+      "fetched": 20560,
+      "calls": 2118,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          42570,
+          6132626,
+          6132626
+        ],
+        [
+          12304,
+          12688,
+          25744,
+          13440
+        ],
+        [
+          0,
+          594,
+          500242,
+          500242
+        ],
+        [
+          0,
+          544,
+          657920,
+          657920
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          5915,
+          5915
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 16,
+      "deadline": 0,
+      "op": 2,
+      "baseline_median_ns": 10586875,
+      "candidate_median_ns": 10331537,
+      "paired_median_ratio": 0.9904729299191499,
+      "work": 1182944,
+      "fetched": 28832,
+      "calls": 2965,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          36954,
+          8156796,
+          8156796
+        ],
+        [
+          4984,
+          5368,
+          7672,
+          2688
+        ],
+        [
+          0,
+          594,
+          702114,
+          702114
+        ],
+        [
+          0,
+          544,
+          922624,
+          922624
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          8302,
+          8302
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 16,
+      "deadline": 0,
+      "op": 3,
+      "baseline_median_ns": 11740076,
+      "candidate_median_ns": 11575627,
+      "paired_median_ratio": 0.9859925097588806,
+      "work": 1267314,
+      "fetched": 16400,
+      "calls": 2459,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          40962,
+          10574846,
+          10574846
+        ],
+        [
+          4984,
+          5368,
+          7672,
+          2688
+        ],
+        [
+          0,
+          594,
+          516226,
+          516226
+        ],
+        [
+          0,
+          544,
+          524800,
+          524800
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          6104,
+          6104
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 16,
+      "deadline": 1,
+      "op": 0,
+      "baseline_median_ns": 530306,
+      "candidate_median_ns": 497936,
+      "paired_median_ratio": 0.9428820341463231,
+      "work": 9935,
+      "fetched": 256,
+      "calls": 32,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          19160,
+          65048,
+          65048
+        ],
+        [
+          12304,
+          13072,
+          25744,
+          13440
+        ],
+        [
+          0,
+          593,
+          4737,
+          4737
+        ],
+        [
+          0,
+          544,
+          8192,
+          8192
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          56,
+          56
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 16,
+      "deadline": 1,
+      "op": 1,
+      "baseline_median_ns": 17853317,
+      "candidate_median_ns": 17095573,
+      "paired_median_ratio": 0.9549459374598687,
+      "work": 1000453,
+      "fetched": 20560,
+      "calls": 2118,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          42570,
+          6132626,
+          6132626
+        ],
+        [
+          12304,
+          12688,
+          25744,
+          13440
+        ],
+        [
+          0,
+          594,
+          500242,
+          500242
+        ],
+        [
+          0,
+          544,
+          657920,
+          657920
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          5915,
+          5915
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 16,
+      "deadline": 1,
+      "op": 2,
+      "baseline_median_ns": 22132663,
+      "candidate_median_ns": 20582406,
+      "paired_median_ratio": 0.9357590600496265,
+      "work": 1182944,
+      "fetched": 28832,
+      "calls": 2965,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          36954,
+          8156796,
+          8156796
+        ],
+        [
+          4984,
+          5368,
+          7672,
+          2688
+        ],
+        [
+          0,
+          594,
+          702114,
+          702114
+        ],
+        [
+          0,
+          544,
+          922624,
+          922624
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          8302,
+          8302
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 16,
+      "deadline": 1,
+      "op": 3,
+      "baseline_median_ns": 30282717,
+      "candidate_median_ns": 28746809,
+      "paired_median_ratio": 0.9470104680501422,
+      "work": 1267314,
+      "fetched": 16400,
+      "calls": 2459,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          40962,
+          10574846,
+          10574846
+        ],
+        [
+          4984,
+          5368,
+          7672,
+          2688
+        ],
+        [
+          0,
+          594,
+          516226,
+          516226
+        ],
+        [
+          0,
+          544,
+          524800,
+          524800
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          6104,
+          6104
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 1025,
+      "deadline": 0,
+      "op": 0,
+      "baseline_median_ns": 478746,
+      "candidate_median_ns": 466237,
+      "paired_median_ratio": 1.008068466073084,
+      "work": 252094,
+      "fetched": 256,
+      "calls": 32,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          83736,
+          129624,
+          129624
+        ],
+        [
+          76880,
+          77648,
+          90320,
+          13440
+        ],
+        [
+          0,
+          593,
+          4737,
+          4737
+        ],
+        [
+          0,
+          544,
+          8192,
+          8192
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          56,
+          56
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 1025,
+      "deadline": 0,
+      "op": 1,
+      "baseline_median_ns": 10040410,
+      "candidate_median_ns": 9780252,
+      "paired_median_ratio": 0.9822420866470934,
+      "work": 36529629,
+      "fetched": 20560,
+      "calls": 2118,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          252442,
+          19838882,
+          19838882
+        ],
+        [
+          76880,
+          77264,
+          90320,
+          13440
+        ],
+        [
+          0,
+          594,
+          500242,
+          500242
+        ],
+        [
+          0,
+          544,
+          657920,
+          657920
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          5915,
+          5915
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 1025,
+      "deadline": 0,
+      "op": 2,
+      "baseline_median_ns": 12098873,
+      "candidate_median_ns": 13528131,
+      "paired_median_ratio": 1.0826402304829739,
+      "work": 40600414,
+      "fetched": 28832,
+      "calls": 2965,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          190322,
+          27432732,
+          27432732
+        ],
+        [
+          9020,
+          9404,
+          11708,
+          2688
+        ],
+        [
+          0,
+          594,
+          702114,
+          702114
+        ],
+        [
+          0,
+          544,
+          922624,
+          922624
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          8302,
+          8302
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 1025,
+      "deadline": 0,
+      "op": 3,
+      "baseline_median_ns": 13191594,
+      "candidate_median_ns": 12395780,
+      "paired_median_ratio": 0.9388312739157982,
+      "work": 28954755,
+      "fetched": 16400,
+      "calls": 2459,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          108238,
+          29168698,
+          29168698
+        ],
+        [
+          9020,
+          9404,
+          11708,
+          2688
+        ],
+        [
+          0,
+          594,
+          516226,
+          516226
+        ],
+        [
+          0,
+          544,
+          524800,
+          524800
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          6104,
+          6104
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 1025,
+      "deadline": 1,
+      "op": 0,
+      "baseline_median_ns": 622775,
+      "candidate_median_ns": 630775,
+      "paired_median_ratio": 1.0203330610396228,
+      "work": 252094,
+      "fetched": 256,
+      "calls": 32,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          83736,
+          129624,
+          129624
+        ],
+        [
+          76880,
+          77648,
+          90320,
+          13440
+        ],
+        [
+          0,
+          593,
+          4737,
+          4737
+        ],
+        [
+          0,
+          544,
+          8192,
+          8192
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          56,
+          56
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 1025,
+      "deadline": 1,
+      "op": 1,
+      "baseline_median_ns": 20511456,
+      "candidate_median_ns": 18709010,
+      "paired_median_ratio": 0.9378084468449644,
+      "work": 36529629,
+      "fetched": 20560,
+      "calls": 2118,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          252442,
+          19838882,
+          19838882
+        ],
+        [
+          76880,
+          77264,
+          90320,
+          13440
+        ],
+        [
+          0,
+          594,
+          500242,
+          500242
+        ],
+        [
+          0,
+          544,
+          657920,
+          657920
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          5915,
+          5915
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 1025,
+      "deadline": 1,
+      "op": 2,
+      "baseline_median_ns": 24741002,
+      "candidate_median_ns": 23369823,
+      "paired_median_ratio": 0.9293448773693547,
+      "work": 40600414,
+      "fetched": 28832,
+      "calls": 2965,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          190322,
+          27432732,
+          27432732
+        ],
+        [
+          9020,
+          9404,
+          11708,
+          2688
+        ],
+        [
+          0,
+          594,
+          702114,
+          702114
+        ],
+        [
+          0,
+          544,
+          922624,
+          922624
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          8302,
+          8302
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 4,
+      "width": 1025,
+      "deadline": 1,
+      "op": 3,
+      "baseline_median_ns": 33362133,
+      "candidate_median_ns": 32384481,
+      "paired_median_ratio": 0.9469184624579422,
+      "work": 28954755,
+      "fetched": 16400,
+      "calls": 2459,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          108238,
+          29168698,
+          29168698
+        ],
+        [
+          9020,
+          9404,
+          11708,
+          2688
+        ],
+        [
+          0,
+          594,
+          516226,
+          516226
+        ],
+        [
+          0,
+          544,
+          524800,
+          524800
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          6104,
+          6104
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 16,
+      "deadline": 0,
+      "op": 0,
+      "baseline_median_ns": 2593329,
+      "candidate_median_ns": 2561979,
+      "paired_median_ratio": 0.9727458413490923,
+      "work": 167719,
+      "fetched": 4096,
+      "calls": 452,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          189200,
+          947888,
+          947888
+        ],
+        [
+          181384,
+          182152,
+          402664,
+          221280
+        ],
+        [
+          0,
+          593,
+          75777,
+          75777
+        ],
+        [
+          0,
+          544,
+          131072,
+          131072
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          896,
+          896
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 16,
+      "deadline": 0,
+      "op": 1,
+      "baseline_median_ns": 146504337,
+      "candidate_median_ns": 144214825,
+      "paired_median_ratio": 0.9868475030500512,
+      "work": 19863357,
+      "fetched": 340240,
+      "calls": 34938,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          513984,
+          112217922,
+          112217922
+        ],
+        [
+          181384,
+          181768,
+          402664,
+          221280
+        ],
+        [
+          0,
+          594,
+          8279122,
+          8279122
+        ],
+        [
+          0,
+          544,
+          10887680,
+          10887680
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          97895,
+          97895
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 16,
+      "deadline": 0,
+      "op": 2,
+      "baseline_median_ns": 186338678,
+      "candidate_median_ns": 172149831,
+      "paired_median_ratio": 0.938760602748102,
+      "work": 19942137,
+      "fetched": 483872,
+      "calls": 49645,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          428064,
+          135528636,
+          135528636
+        ],
+        [
+          64264,
+          64648,
+          113512,
+          49248
+        ],
+        [
+          0,
+          594,
+          11784354,
+          11784354
+        ],
+        [
+          0,
+          544,
+          15483904,
+          15483904
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          139342,
+          139342
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 16,
+      "deadline": 1,
+      "op": 0,
+      "baseline_median_ns": 4923790,
+      "candidate_median_ns": 4747952,
+      "paired_median_ratio": 0.9717579344366839,
+      "work": 167719,
+      "fetched": 4096,
+      "calls": 452,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          189200,
+          947888,
+          947888
+        ],
+        [
+          181384,
+          182152,
+          402664,
+          221280
+        ],
+        [
+          0,
+          593,
+          75777,
+          75777
+        ],
+        [
+          0,
+          544,
+          131072,
+          131072
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          896,
+          896
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 16,
+      "deadline": 1,
+      "op": 1,
+      "baseline_median_ns": 411365836,
+      "candidate_median_ns": 392945984,
+      "paired_median_ratio": 0.9564761693044437,
+      "work": 19863357,
+      "fetched": 340240,
+      "calls": 34938,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          513984,
+          112217922,
+          112217922
+        ],
+        [
+          181384,
+          181768,
+          402664,
+          221280
+        ],
+        [
+          0,
+          594,
+          8279122,
+          8279122
+        ],
+        [
+          0,
+          544,
+          10887680,
+          10887680
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          97895,
+          97895
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 16,
+      "deadline": 1,
+      "op": 2,
+      "baseline_median_ns": 378267581,
+      "candidate_median_ns": 345010367,
+      "paired_median_ratio": 0.9128736611681415,
+      "work": 19942137,
+      "fetched": 483872,
+      "calls": 49645,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          428064,
+          135528636,
+          135528636
+        ],
+        [
+          64264,
+          64648,
+          113512,
+          49248
+        ],
+        [
+          0,
+          594,
+          11784354,
+          11784354
+        ],
+        [
+          0,
+          544,
+          15483904,
+          15483904
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          139342,
+          139342
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 1025,
+      "deadline": 0,
+      "op": 0,
+      "baseline_median_ns": 4947980,
+      "candidate_median_ns": 5041069,
+      "paired_median_ratio": 1.0265958194234321,
+      "work": 4478169,
+      "fetched": 4096,
+      "calls": 452,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1222416,
+          1981104,
+          1981104
+        ],
+        [
+          1214600,
+          1215368,
+          1435880,
+          221280
+        ],
+        [
+          0,
+          593,
+          75777,
+          75777
+        ],
+        [
+          0,
+          544,
+          131072,
+          131072
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          896,
+          896
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 1025,
+      "deadline": 0,
+      "op": 1,
+      "baseline_median_ns": 189517442,
+      "candidate_median_ns": 183684839,
+      "paired_median_ratio": 0.9692239250464345,
+      "work": 611333661,
+      "fetched": 340240,
+      "calls": 34938,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          3627450,
+          339024978,
+          339024978
+        ],
+        [
+          1214600,
+          1214984,
+          1435880,
+          221280
+        ],
+        [
+          0,
+          594,
+          8279122,
+          8279122
+        ],
+        [
+          0,
+          544,
+          10887680,
+          10887680
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          97895,
+          97895
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 1025,
+      "deadline": 0,
+      "op": 2,
+      "baseline_median_ns": 211254808,
+      "candidate_median_ns": 207669557,
+      "paired_median_ratio": 1.003312358245049,
+      "work": 681633571,
+      "fetched": 483872,
+      "calls": 49645,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          2637722,
+          458957532,
+          458957532
+        ],
+        [
+          128840,
+          129224,
+          178088,
+          49248
+        ],
+        [
+          0,
+          594,
+          11784354,
+          11784354
+        ],
+        [
+          0,
+          544,
+          15483904,
+          15483904
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          139342,
+          139342
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 1025,
+      "deadline": 1,
+      "op": 0,
+      "baseline_median_ns": 6728376,
+      "candidate_median_ns": 6588867,
+      "paired_median_ratio": 0.9471793787980933,
+      "work": 4478169,
+      "fetched": 4096,
+      "calls": 452,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1222416,
+          1981104,
+          1981104
+        ],
+        [
+          1214600,
+          1215368,
+          1435880,
+          221280
+        ],
+        [
+          0,
+          593,
+          75777,
+          75777
+        ],
+        [
+          0,
+          544,
+          131072,
+          131072
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          896,
+          896
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 1025,
+      "deadline": 1,
+      "op": 1,
+      "baseline_median_ns": 449235632,
+      "candidate_median_ns": 430427243,
+      "paired_median_ratio": 0.9422304722551771,
+      "work": 611333661,
+      "fetched": 340240,
+      "calls": 34938,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          3627450,
+          339024978,
+          339024978
+        ],
+        [
+          1214600,
+          1214984,
+          1435880,
+          221280
+        ],
+        [
+          0,
+          594,
+          8279122,
+          8279122
+        ],
+        [
+          0,
+          544,
+          10887680,
+          10887680
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          97895,
+          97895
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release",
+      "series": 64,
+      "width": 1025,
+      "deadline": 1,
+      "op": 2,
+      "baseline_median_ns": 410386033,
+      "candidate_median_ns": 390880080,
+      "paired_median_ratio": 0.9411899278804822,
+      "work": 681633571,
+      "fetched": 483872,
+      "calls": 49645,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          2637722,
+          458957532,
+          458957532
+        ],
+        [
+          128840,
+          129224,
+          178088,
+          49248
+        ],
+        [
+          0,
+          594,
+          11784354,
+          11784354
+        ],
+        [
+          0,
+          544,
+          15483904,
+          15483904
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          139342,
+          139342
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 16,
+      "deadline": 0,
+      "op": 0,
+      "baseline_median_ns": 559865,
+      "candidate_median_ns": 463006,
+      "paired_median_ratio": 0.8197522497081968,
+      "work": 9935,
+      "fetched": 256,
+      "calls": 32,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          19160,
+          65048,
+          65048
+        ],
+        [
+          12304,
+          13072,
+          25744,
+          13440
+        ],
+        [
+          0,
+          593,
+          4737,
+          4737
+        ],
+        [
+          0,
+          544,
+          8192,
+          8192
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          56,
+          56
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 16,
+      "deadline": 0,
+      "op": 1,
+      "baseline_median_ns": 15469406,
+      "candidate_median_ns": 16728156,
+      "paired_median_ratio": 1.010913490346457,
+      "work": 1000453,
+      "fetched": 20560,
+      "calls": 2118,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          42570,
+          6132626,
+          6132626
+        ],
+        [
+          12304,
+          12688,
+          25744,
+          13440
+        ],
+        [
+          0,
+          594,
+          500242,
+          500242
+        ],
+        [
+          0,
+          544,
+          657920,
+          657920
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          5915,
+          5915
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 16,
+      "deadline": 0,
+      "op": 2,
+      "baseline_median_ns": 19870651,
+      "candidate_median_ns": 19452004,
+      "paired_median_ratio": 0.9789313898170724,
+      "work": 1182944,
+      "fetched": 28832,
+      "calls": 2965,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          36954,
+          8156796,
+          8156796
+        ],
+        [
+          4984,
+          5368,
+          7672,
+          2688
+        ],
+        [
+          0,
+          594,
+          702114,
+          702114
+        ],
+        [
+          0,
+          544,
+          922624,
+          922624
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          8302,
+          8302
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 16,
+      "deadline": 0,
+      "op": 3,
+      "baseline_median_ns": 25628485,
+      "candidate_median_ns": 25402207,
+      "paired_median_ratio": 0.9991979390612818,
+      "work": 1267314,
+      "fetched": 16400,
+      "calls": 2459,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          40962,
+          10574846,
+          10574846
+        ],
+        [
+          4984,
+          5368,
+          7672,
+          2688
+        ],
+        [
+          0,
+          594,
+          516226,
+          516226
+        ],
+        [
+          0,
+          544,
+          524800,
+          524800
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          6104,
+          6104
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 16,
+      "deadline": 1,
+      "op": 0,
+      "baseline_median_ns": 529845,
+      "candidate_median_ns": 521766,
+      "paired_median_ratio": 1.0095659323523574,
+      "work": 9935,
+      "fetched": 256,
+      "calls": 32,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          19160,
+          65048,
+          65048
+        ],
+        [
+          12304,
+          13072,
+          25744,
+          13440
+        ],
+        [
+          0,
+          593,
+          4737,
+          4737
+        ],
+        [
+          0,
+          544,
+          8192,
+          8192
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          56,
+          56
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 16,
+      "deadline": 1,
+      "op": 1,
+      "baseline_median_ns": 24096777,
+      "candidate_median_ns": 22622059,
+      "paired_median_ratio": 0.9451123614615494,
+      "work": 1000453,
+      "fetched": 20560,
+      "calls": 2118,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          42570,
+          6132626,
+          6132626
+        ],
+        [
+          12304,
+          12688,
+          25744,
+          13440
+        ],
+        [
+          0,
+          594,
+          500242,
+          500242
+        ],
+        [
+          0,
+          544,
+          657920,
+          657920
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          5915,
+          5915
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 16,
+      "deadline": 1,
+      "op": 2,
+      "baseline_median_ns": 30719014,
+      "candidate_median_ns": 29672072,
+      "paired_median_ratio": 0.9885481347512572,
+      "work": 1182944,
+      "fetched": 28832,
+      "calls": 2965,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          36954,
+          8156796,
+          8156796
+        ],
+        [
+          4984,
+          5368,
+          7672,
+          2688
+        ],
+        [
+          0,
+          594,
+          702114,
+          702114
+        ],
+        [
+          0,
+          544,
+          922624,
+          922624
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          8302,
+          8302
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 16,
+      "deadline": 1,
+      "op": 3,
+      "baseline_median_ns": 48962098,
+      "candidate_median_ns": 42063603,
+      "paired_median_ratio": 0.8430116699656129,
+      "work": 1267314,
+      "fetched": 16400,
+      "calls": 2459,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          40962,
+          10574846,
+          10574846
+        ],
+        [
+          4984,
+          5368,
+          7672,
+          2688
+        ],
+        [
+          0,
+          594,
+          516226,
+          516226
+        ],
+        [
+          0,
+          544,
+          524800,
+          524800
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          6104,
+          6104
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 1025,
+      "deadline": 0,
+      "op": 0,
+      "baseline_median_ns": 545706,
+      "candidate_median_ns": 534856,
+      "paired_median_ratio": 0.9906714386311334,
+      "work": 252094,
+      "fetched": 256,
+      "calls": 32,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          83736,
+          129624,
+          129624
+        ],
+        [
+          76880,
+          77648,
+          90320,
+          13440
+        ],
+        [
+          0,
+          593,
+          4737,
+          4737
+        ],
+        [
+          0,
+          544,
+          8192,
+          8192
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          56,
+          56
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 1025,
+      "deadline": 0,
+      "op": 1,
+      "baseline_median_ns": 23510102,
+      "candidate_median_ns": 23655270,
+      "paired_median_ratio": 1.0045745309140641,
+      "work": 36529629,
+      "fetched": 20560,
+      "calls": 2118,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          252442,
+          19838882,
+          19838882
+        ],
+        [
+          76880,
+          77264,
+          90320,
+          13440
+        ],
+        [
+          0,
+          594,
+          500242,
+          500242
+        ],
+        [
+          0,
+          544,
+          657920,
+          657920
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          5915,
+          5915
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 1025,
+      "deadline": 0,
+      "op": 2,
+      "baseline_median_ns": 29449514,
+      "candidate_median_ns": 29082458,
+      "paired_median_ratio": 0.9820918946234563,
+      "work": 40600414,
+      "fetched": 28832,
+      "calls": 2965,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          190322,
+          27432732,
+          27432732
+        ],
+        [
+          9020,
+          9404,
+          11708,
+          2688
+        ],
+        [
+          0,
+          594,
+          702114,
+          702114
+        ],
+        [
+          0,
+          544,
+          922624,
+          922624
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          8302,
+          8302
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 1025,
+      "deadline": 0,
+      "op": 3,
+      "baseline_median_ns": 37645909,
+      "candidate_median_ns": 32542909,
+      "paired_median_ratio": 0.8804015065753891,
+      "work": 28954755,
+      "fetched": 16400,
+      "calls": 2459,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          108238,
+          29168698,
+          29168698
+        ],
+        [
+          9020,
+          9404,
+          11708,
+          2688
+        ],
+        [
+          0,
+          594,
+          516226,
+          516226
+        ],
+        [
+          0,
+          544,
+          524800,
+          524800
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          6104,
+          6104
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 1025,
+      "deadline": 1,
+      "op": 0,
+      "baseline_median_ns": 685425,
+      "candidate_median_ns": 685185,
+      "paired_median_ratio": 0.9945060203229399,
+      "work": 252094,
+      "fetched": 256,
+      "calls": 32,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          83736,
+          129624,
+          129624
+        ],
+        [
+          76880,
+          77648,
+          90320,
+          13440
+        ],
+        [
+          0,
+          593,
+          4737,
+          4737
+        ],
+        [
+          0,
+          544,
+          8192,
+          8192
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          56,
+          56
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 1025,
+      "deadline": 1,
+      "op": 1,
+      "baseline_median_ns": 32583409,
+      "candidate_median_ns": 31580097,
+      "paired_median_ratio": 0.9647195953403431,
+      "work": 36529629,
+      "fetched": 20560,
+      "calls": 2118,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          252442,
+          19838882,
+          19838882
+        ],
+        [
+          76880,
+          77264,
+          90320,
+          13440
+        ],
+        [
+          0,
+          594,
+          500242,
+          500242
+        ],
+        [
+          0,
+          544,
+          657920,
+          657920
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          5915,
+          5915
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 1025,
+      "deadline": 1,
+      "op": 2,
+      "baseline_median_ns": 41862165,
+      "candidate_median_ns": 40787613,
+      "paired_median_ratio": 0.9663864141538144,
+      "work": 40600414,
+      "fetched": 28832,
+      "calls": 2965,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          190322,
+          27432732,
+          27432732
+        ],
+        [
+          9020,
+          9404,
+          11708,
+          2688
+        ],
+        [
+          0,
+          594,
+          702114,
+          702114
+        ],
+        [
+          0,
+          544,
+          922624,
+          922624
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          8302,
+          8302
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 4,
+      "width": 1025,
+      "deadline": 1,
+      "op": 3,
+      "baseline_median_ns": 49319895,
+      "candidate_median_ns": 50376406,
+      "paired_median_ratio": 1.0223102145472458,
+      "work": 28954755,
+      "fetched": 16400,
+      "calls": 2459,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          108238,
+          29168698,
+          29168698
+        ],
+        [
+          9020,
+          9404,
+          11708,
+          2688
+        ],
+        [
+          0,
+          594,
+          516226,
+          516226
+        ],
+        [
+          0,
+          544,
+          524800,
+          524800
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          6104,
+          6104
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 16,
+      "deadline": 0,
+      "op": 0,
+      "baseline_median_ns": 4177176,
+      "candidate_median_ns": 4257476,
+      "paired_median_ratio": 1.0196570302002368,
+      "work": 167719,
+      "fetched": 4096,
+      "calls": 452,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          189200,
+          947888,
+          947888
+        ],
+        [
+          181384,
+          182152,
+          402664,
+          221280
+        ],
+        [
+          0,
+          593,
+          75777,
+          75777
+        ],
+        [
+          0,
+          544,
+          131072,
+          131072
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          896,
+          896
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 16,
+      "deadline": 0,
+      "op": 1,
+      "baseline_median_ns": 299820379,
+      "candidate_median_ns": 309396702,
+      "paired_median_ratio": 1.023952184384371,
+      "work": 19863357,
+      "fetched": 340240,
+      "calls": 34938,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          513984,
+          112217922,
+          112217922
+        ],
+        [
+          181384,
+          181768,
+          402664,
+          221280
+        ],
+        [
+          0,
+          594,
+          8279122,
+          8279122
+        ],
+        [
+          0,
+          544,
+          10887680,
+          10887680
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          97895,
+          97895
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 16,
+      "deadline": 0,
+      "op": 2,
+      "baseline_median_ns": 343838726,
+      "candidate_median_ns": 342390118,
+      "paired_median_ratio": 1.0257040038820735,
+      "work": 19942137,
+      "fetched": 483872,
+      "calls": 49645,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          428064,
+          135528636,
+          135528636
+        ],
+        [
+          64264,
+          64648,
+          113512,
+          49248
+        ],
+        [
+          0,
+          594,
+          11784354,
+          11784354
+        ],
+        [
+          0,
+          544,
+          15483904,
+          15483904
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          139342,
+          139342
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 16,
+      "deadline": 1,
+      "op": 0,
+      "baseline_median_ns": 6364260,
+      "candidate_median_ns": 6148230,
+      "paired_median_ratio": 0.9524831257380965,
+      "work": 167719,
+      "fetched": 4096,
+      "calls": 452,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          189200,
+          947888,
+          947888
+        ],
+        [
+          181384,
+          182152,
+          402664,
+          221280
+        ],
+        [
+          0,
+          593,
+          75777,
+          75777
+        ],
+        [
+          0,
+          544,
+          131072,
+          131072
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          896,
+          896
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 16,
+      "deadline": 1,
+      "op": 1,
+      "baseline_median_ns": 515619141,
+      "candidate_median_ns": 493179040,
+      "paired_median_ratio": 0.9564793095995635,
+      "work": 19863357,
+      "fetched": 340240,
+      "calls": 34938,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          513984,
+          112217922,
+          112217922
+        ],
+        [
+          181384,
+          181768,
+          402664,
+          221280
+        ],
+        [
+          0,
+          594,
+          8279122,
+          8279122
+        ],
+        [
+          0,
+          544,
+          10887680,
+          10887680
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          97895,
+          97895
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 16,
+      "deadline": 1,
+      "op": 2,
+      "baseline_median_ns": 518920904,
+      "candidate_median_ns": 500023856,
+      "paired_median_ratio": 0.9481487264388309,
+      "work": 19942137,
+      "fetched": 483872,
+      "calls": 49645,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          428064,
+          135528636,
+          135528636
+        ],
+        [
+          64264,
+          64648,
+          113512,
+          49248
+        ],
+        [
+          0,
+          594,
+          11784354,
+          11784354
+        ],
+        [
+          0,
+          544,
+          15483904,
+          15483904
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          139342,
+          139342
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 1025,
+      "deadline": 0,
+      "op": 0,
+      "baseline_median_ns": 6664536,
+      "candidate_median_ns": 6746086,
+      "paired_median_ratio": 0.9878098006088505,
+      "work": 4478169,
+      "fetched": 4096,
+      "calls": 452,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1222416,
+          1981104,
+          1981104
+        ],
+        [
+          1214600,
+          1215368,
+          1435880,
+          221280
+        ],
+        [
+          0,
+          593,
+          75777,
+          75777
+        ],
+        [
+          0,
+          544,
+          131072,
+          131072
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          896,
+          896
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 1025,
+      "deadline": 0,
+      "op": 1,
+      "baseline_median_ns": 465921748,
+      "candidate_median_ns": 473439538,
+      "paired_median_ratio": 1.013228122467939,
+      "work": 611333661,
+      "fetched": 340240,
+      "calls": 34938,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          3627450,
+          339024978,
+          339024978
+        ],
+        [
+          1214600,
+          1214984,
+          1435880,
+          221280
+        ],
+        [
+          0,
+          594,
+          8279122,
+          8279122
+        ],
+        [
+          0,
+          544,
+          10887680,
+          10887680
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          97895,
+          97895
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 1025,
+      "deadline": 0,
+      "op": 2,
+      "baseline_median_ns": 515846559,
+      "candidate_median_ns": 534645238,
+      "paired_median_ratio": 1.0236147198958052,
+      "work": 681633571,
+      "fetched": 483872,
+      "calls": 49645,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          2637722,
+          458957532,
+          458957532
+        ],
+        [
+          128840,
+          129224,
+          178088,
+          49248
+        ],
+        [
+          0,
+          594,
+          11784354,
+          11784354
+        ],
+        [
+          0,
+          544,
+          15483904,
+          15483904
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          139342,
+          139342
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 1025,
+      "deadline": 1,
+      "op": 0,
+      "baseline_median_ns": 9184416,
+      "candidate_median_ns": 9089227,
+      "paired_median_ratio": 0.9940581742703054,
+      "work": 4478169,
+      "fetched": 4096,
+      "calls": 452,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1222416,
+          1981104,
+          1981104
+        ],
+        [
+          1214600,
+          1215368,
+          1435880,
+          221280
+        ],
+        [
+          0,
+          593,
+          75777,
+          75777
+        ],
+        [
+          0,
+          544,
+          131072,
+          131072
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          896,
+          896
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 1025,
+      "deadline": 1,
+      "op": 1,
+      "baseline_median_ns": 749788265,
+      "candidate_median_ns": 773363297,
+      "paired_median_ratio": 0.9985472240587222,
+      "work": 611333661,
+      "fetched": 340240,
+      "calls": 34938,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          3627450,
+          339024978,
+          339024978
+        ],
+        [
+          1214600,
+          1214984,
+          1435880,
+          221280
+        ],
+        [
+          0,
+          594,
+          8279122,
+          8279122
+        ],
+        [
+          0,
+          544,
+          10887680,
+          10887680
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          97895,
+          97895
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    },
+    {
+      "profile": "release-min",
+      "series": 64,
+      "width": 1025,
+      "deadline": 1,
+      "op": 2,
+      "baseline_median_ns": 748142868,
+      "candidate_median_ns": 773732142,
+      "paired_median_ratio": 1.0137295159467474,
+      "work": 681633571,
+      "fetched": 483872,
+      "calls": 49645,
+      "memory": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          2637722,
+          458957532,
+          458957532
+        ],
+        [
+          128840,
+          129224,
+          178088,
+          49248
+        ],
+        [
+          0,
+          594,
+          11784354,
+          11784354
+        ],
+        [
+          0,
+          544,
+          15483904,
+          15483904
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          7,
+          139342,
+          139342
+        ],
+        [
+          896,
+          896,
+          896,
+          0
+        ]
+      ]
+    }
+  ],
+  "limitations": [
+    "Shared host timings; no live-workload speedup is established.",
+    "Grouped Count timing uses four series. The earlier 64-series exploration used pre-Count libraries and is not current-source qualification.",
+    "Every C query asserts complete output and cleanup; deadline modes use no deadline or a one-hour deadline.",
+    "Expired/cancelled controls and later-chunk interruption are covered by Rust units.",
+    "Initial retained baseline libraries were stale; they were explicitly rebuilt with --lib before this comparison.",
+    "The first qualification launcher omitted required fixture scratch; its failed run is retained separately.",
+    "The private original harness incorrectly expected arithmetic on(zone) to retain all labels; its failure is not an engine defect."
+  ],
+  "qualification_receipt_sha256": "05d77ada7b77eae19467654456b26a91a48e7b41e11e80a85e99be7c02f53af4",
+  "baseline_receipt_sha256": "32d7d9bba5d68de61e718d38d1530382c659ede2113287538c8cd75533613491",
+  "units_receipt_sha256": "2ea867bcee6e5daf8cebb3ec2f54fbdb47b54f6c2a90f9544705d82ec8f63b0d",
+  "runner_sha256": "42773a98bd52b87d054bf25210104130cda334b58268c02f4650ec793751bd10",
+  "publisher_sha256": "048cfbfe20ae437d02cac336a6fd7497dd1c592f30e84571b9f788d8cf890349",
+  "candidate_build_receipt_sha256": "ffc60d3aca9c2d5696de8c24ed6808b54ff8e7691fab72e110ce41e8cc0782c8",
+  "cxx_embedding": {
+    "release": {
+      "result": "pass",
+      "records": 209,
+      "stdout_sha256": "e99d2867f0090b01b90281f6e613d23f5eb69d3dcfae013b68f4b68a5f1a6c96",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "release-min": {
+      "result": "pass",
+      "records": 209,
+      "stdout_sha256": "e99d2867f0090b01b90281f6e613d23f5eb69d3dcfae013b68f4b68a5f1a6c96",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

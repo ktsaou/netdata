@@ -16,6 +16,9 @@ its “range cohort” mean this mixed panel workload. The separate instant coho
 Runtime `02f2343863` is installed. Grouped Count set operations now reuse completed membership discovery while
 preserving fresh selected values and final validation. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/COUNT_SET_DISCOVERY.md)
 covers ordinary selectors, count windows, native inputs, wrapper clocks and actual C/HTTP callers.
+The standalone C-library source attribution was corrected on October 29; all eight consumers were rerun after
+explicit library builds. Rust fixture/unit and Netdata storage/HTTP evidence were unaffected. See the linked
+qualification's correction for original and replacement artifacts.
 
 The [complete live comparison](count-set-live.json) records 351 successes and the same nine timeouts in each
 360-query run. The application-availability range query improves from 22.00 to 18.19 seconds; accounted work

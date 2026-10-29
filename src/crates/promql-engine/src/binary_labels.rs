@@ -28,8 +28,11 @@ pub(crate) fn compare_with(
     account: Option<&QueryAccounting>,
 ) -> Result<std::cmp::Ordering, Interrupted> {
     control.check()?;
-    for (left, right) in left.chunks(1024).zip(right.chunks(1024)) {
-        control.check()?;
+    for (index, (left, right)) in left.chunks(1024).zip(right.chunks(1024)).enumerate() {
+        // The entry check already covers the first chunk; no work intervenes.
+        if index != 0 {
+            control.check()?;
+        }
         if let Some(account) = account {
             account.work(left.len().min(right.len()) as u64);
         }
@@ -116,8 +119,11 @@ fn equal_with(
         work(1);
         return Ok(false);
     }
-    for (left, right) in left.chunks(1024).zip(right.chunks(1024)) {
-        control.check()?;
+    for (index, (left, right)) in left.chunks(1024).zip(right.chunks(1024)).enumerate() {
+        // The entry check already covers the first chunk; no work intervenes.
+        if index != 0 {
+            control.check()?;
+        }
         work(left.len() as u64);
         if left != right {
             return Ok(false);
@@ -866,6 +872,95 @@ mod projection_tests {
             }
         }
         drop(empty);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn byte_comparisons_preserve_chunk_work_and_entry_interruption() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        for width in [0, 1, 1023, 1024, 1025, 2049] {
+            let left = vec![b'x'; width];
+            let mut changed = left.clone();
+            if let Some(last) = changed.last_mut() {
+                *last = b'y';
+            }
+            let longer = vec![b'x'; width + 1];
+            for right in [&left, &changed, &longer] {
+                let before = account.snapshot();
+                assert_eq!(
+                    compare(&left, right, &control, &account),
+                    Ok(left.cmp(right))
+                );
+                assert_eq!(account.snapshot().work - before.work, width as u64);
+                assert_eq!(
+                    compare_with(&left, right, &control, None),
+                    Ok(left.cmp(right))
+                );
+                let before_equal = account.snapshot().work;
+                assert_eq!(equal(&left, right, &control, &account), Ok(left == *right));
+                assert_eq!(
+                    account.snapshot().work - before_equal,
+                    if left.len() == right.len() {
+                        width as u64
+                    } else {
+                        1
+                    }
+                );
+                assert_eq!(account.snapshot().memory, before.memory);
+                for cancel in [false, true] {
+                    let interrupted = Control {
+                        deadline: Some(std::time::Instant::now()),
+                        ..Control::default()
+                    };
+                    if cancel {
+                        interrupted.cancellation.cancel();
+                    }
+                    let error = if cancel {
+                        Interrupted::Cancelled
+                    } else {
+                        Interrupted::Deadline
+                    };
+                    let before = account.snapshot().work;
+                    assert_eq!(compare(&left, right, &interrupted, &account), Err(error));
+                    assert_eq!(compare_with(&left, right, &interrupted, None), Err(error));
+                    assert_eq!(equal(&left, right, &interrupted, &account), Err(error));
+                    assert_eq!(account.snapshot().work, before);
+                }
+            }
+        }
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn byte_comparisons_interrupt_before_later_chunks() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let value = vec![b'x'; 4097];
+        for threshold in [1, 1024, 1025, 2048, 2049, 4096] {
+            for equality in [false, true] {
+                let control = Control::default();
+                let before = account.snapshot().work;
+                let result = crate::test_storage::interrupt_after_work(
+                    &account,
+                    &control,
+                    threshold,
+                    || {
+                        if equality {
+                            equal(&value, &value, &control, &account)
+                        } else {
+                            compare(&value, &value, &control, &account).map(|order| order.is_eq())
+                        }
+                    },
+                );
+                assert_eq!(result, Err(Interrupted::Cancelled));
+                assert_eq!(
+                    account.snapshot().work - before,
+                    threshold.div_ceil(1024) * 1024
+                );
+            }
+        }
         account.snapshot().assert_memory_released();
     }
 

@@ -13077,3 +13077,9 @@ bound to the actual sources and binaries; live latency is a separate qualificati
 See [COUNT_SET_DISCOVERY.md](COUNT_SET_DISCOVERY.md) for Count selector/window admission, transparent
 parentheses, required final reads and complete C/HTTP qualification. The measured work reduction does not
 reduce raw sample or backing reads; retain standalone timing controls and the separate live-throughput assessment.
+
+## Control checks during label comparisons
+
+See [LABEL_COMPARISON.md](LABEL_COMPARISON.md) for entry/chunk interruption, unchanged byte-work accounting,
+actual deadline-enabled C consumers and paired whole-query timings. Keep deadline modes and slow optional-backing
+fallbacks explicit; removing duplicate clock observations does not reduce accounted sample work.

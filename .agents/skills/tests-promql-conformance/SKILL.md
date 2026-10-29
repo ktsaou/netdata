@@ -515,3 +515,13 @@ Grouped Count set discovery follows
 `src/crates/promql-engine/tests/promql-conformance/COUNT_SET_DISCOVERY.md` for selector/window composition,
 original-wrapper clock checks, native input validation and required final acquisition failures. Measure actual
 timing separately from accounted work, retaining standalone operand controls and unchanged raw/backing reads.
+
+Shared byte-comparison polling follows
+`src/crates/promql-engine/tests/promql-conformance/LABEL_COMPARISON.md`: retain entry and subsequent-chunk
+interruption, exact partial work and deadline-present/absent C timings. A no-deadline fixture cannot quantify
+clock-read savings, and the large grouped Count fallback without optional backing must remain separately reported.
+
+Before linking a standalone C consumer, explicitly build `--lib` and bind the resulting archive to that build's
+source inventory. A `--bin` build may update dependency artifacts while leaving the top-level static archive
+stale; matching a previously recorded archive hash does not establish current-source provenance. The affected
+historical Count consumers and their replacement are documented in `COUNT_SET_DISCOVERY.md`.

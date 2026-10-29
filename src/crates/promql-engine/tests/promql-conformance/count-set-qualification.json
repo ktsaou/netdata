@@ -2423,6 +2423,7 @@
     "tests/promql-integration/allocation-handles-qualification.json": "370a277f2ba33c90af7b3378dd14a71dc4826f7de0541512d04a0752a4311163"
   },
   "limitations": [
+    "Original c_consumers linked older top-level libraries. See c_consumers_correction for exact-source replacement; original records remain historical observations.",
     "Synthetic timings use Control::default() without deadline polling; HTTP requests exercise a different control path.",
     "Finite baseline/candidate comparisons, not a new exhaustive upstream qualification.",
     "Shared-host timings exclude fixture transport and do not establish live concurrency gains.",
@@ -2430,5 +2431,11 @@
     "Raw sample and temporary backing reads are unchanged; tracked peaks are not process RSS.",
     "No new ARM execution evidence in this cohort; ABI and arithmetic owners are unchanged.",
     "Long-history timeouts and live histogram representation remain unresolved."
-  ]
+  ],
+  "c_consumers_correction": {
+    "status": "original consumers used older libraries; qualification replaced",
+    "report": "count-set-c-qualification-correction.json",
+    "original_library_source_execution_sha256": "277b2bdb3440c14d269636f9e5348a0fee5d7b0221009d889ceb17efe5f9bff5",
+    "current_execution_sha256": "63853f72ce40dded43f2183bd40bd9f2f0983b080dec11b2a3d23c4e3cbe9fdb"
+  }
 }

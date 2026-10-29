@@ -57,6 +57,18 @@ The work reduction is larger than the measured speedup and must not be presented
 - Normal Netdata: eight storage phases and 922 observations. Actual HTTP qualification covers both codecs,
   including all three grouped-count set operations across collected hosts.
 
+### Standalone C qualification correction — 2026-10-29
+
+The original eight standalone C consumers linked older top-level static libraries. Building the Rust fixture
+binary updated its dependencies but did not republish `target/<profile>/libnetdata_promql_engine.a`.
+The source snapshots recorded beside those C executions therefore did not establish their actual library cohort.
+Those original executions qualify the older library, not this Count optimization.
+
+The replacement [C qualification](count-set-c-qualification-correction.json) explicitly builds `--lib` in each
+profile before linking and running all eight consumers. It preserves the original observations and identifies
+their earlier library provenance. The Rust fixture/unit results and Netdata storage/HTTP qualification remain
+valid: their actual build logs bind the fresh Rust binaries or explicitly build and link the library.
+
 From the crate directory, build `promql-query-fixture` with the `fixtures` feature. Then pipe
 `python tests/promql-conformance/count_set_cases.py` into that executable. The generator defaults to 8/32 groups
 and pages 17/1024; `--groups` and `--pages` select another fixture size. Pipe output through gzip when retaining
