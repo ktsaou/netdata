@@ -11,9 +11,33 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
+## Follow-up: grouped Count set discovery — 2026-10-28
+
+Runtime `02f2343863` is installed. Grouped Count set operations now reuse completed membership discovery while
+preserving fresh selected values and final validation. The [controlled qualification](../../../src/crates/promql-engine/tests/promql-conformance/COUNT_SET_DISCOVERY.md)
+covers ordinary selectors, count windows, native inputs, wrapper clocks and actual C/HTTP callers.
+
+The [complete live comparison](count-set-live.json) records 351 successes and the same nine timeouts in each
+360-query run. The application-availability range query improves from 22.00 to 18.19 seconds; accounted work
+decreases from 912,901,876 to 650,063,444 with 13,294,907 fetched sample entries unchanged. Its instant counterpart
+changes from 6.25 to 6.69 seconds. Fleet panel batch time changes from 107.66 to 112.14 seconds, and the median
+elapsed ratio across successful pairs is 1.047. These observations do not establish an overall speedup.
+
+All successful pairs retain result types, labels, timestamps and counts; all 360 warning/info arrays agree.
+Unordered values match in 349 of 351 successful pairs, including all 17 Count/unless pairs. The remaining two
+averages differ at 26 points by at most two floating-point units in the last place. Unchanged inner values,
+combined in each run's independently observed host order, reproduce every one of their 6,087 and 31 points
+exactly. Provider order is preserved under [decision 9](../../../src/crates/promql-engine/tests/promql-conformance/DESIGN.md#9-define-deterministic-order-only-where-upstream-leaves-it-unspecified);
+restart-induced metadata loading remains an inference, not a recorded nested-callback trace.
+
+Installation and persistent configuration comparisons pass. Grafana returns 79 frames, and all 18 common
+observed CPU hosts advance their reception timestamps. The remaining failures are application CPU sums and
+service CPU rates at 6 hours, 24 hours and 7 days, plus three 7-day fleet/history/alert expressions. Historical
+bucket-boundary changes remain outside scope, and cumulative histogram exposure still awaits a design decision.
+
 ## Follow-up: direct DBengine allocation handles — 2026-10-27
 
-Runtime `c48c575224` is installed. DBengine read leases now own their existing Rust allocation handles directly,
+Runtime `c48c575224` was installed for this comparison. DBengine read leases now own their existing Rust allocation handles directly,
 removing a C wrapper and its extra accounting handle. The [controlled qualification](../allocation-handles-qualification.json)
 covers ownership, resizing, refusal cleanup and handles retained beyond query/report lifetimes. Both build modes
 pass storage/API checks; the corrected metadata fixture passes 148 HTTP checks and 24 host-readiness cases.
