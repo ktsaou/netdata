@@ -11,9 +11,39 @@ supports every PromQL input type. Alert-expression testing does not install an a
 The `fleet4` dashboard cohort honors panel settings: 120 range and 16 instant requests. Earlier references to
 its “range cohort” mean this mixed panel workload. The separate instant cohort evaluates all 136 targets instantly.
 
+## Follow-up: journal metric lookup — 2026-10-29
+
+Runtime `63ebe3ca59` is installed. Each metric-directory search now establishes one mapped-file access context
+for its binary-search probes. The [isolated qualification](../JOURNAL_METRIC_LOOKUP.md) measures larger-directory
+lookups about 5–8 times faster, with unchanged lookup results and error recovery. This adds no query allocation;
+the additional diagnostic site adds 64 bytes of thread-local state per thread on the measured AMD64 build.
+
+The [live comparison](journal-metric-lookup-live.json) records **351/360 successes before and 350/360 after**.
+The same nine long-history requests time out, and a concurrent availability panel also times out after previously
+completing. Fleet batch time changes from 180.71 to 186.39 seconds; the successful-pair median elapsed ratio is
+1.034. **There is no demonstrated overall live latency improvement.** The isolated speedup is not a complete-query
+speedup; cache residency, retained data and concurrent work also affect this replay.
+
+All 350 successful pairs retain labels, timestamps and counts; all 360 diagnostic arrays match. Unordered results
+match in 344 pairs. Two averages differ at eight points by at most two floating-point units in the last place;
+unchanged inner values in the observed host order reproduce both averages exactly. The other four differences
+occur in long-history queries that used tier 0 only before and both tier 0 and tier 1 afterward. Their 44 changed
+points are retained explicitly. Those four cases are **not same-storage-input numerical comparisons**: the exact
+original inputs and eviction events were not captured, so the changed values are not individually reproduced.
+Tier-span selection precedes journal lookup, and its implementation is unchanged by this optimization.
+
+Normal/internal storage checks, 154 HTTP checks and independent reviews pass. The installer preserves configuration;
+Grafana returns 79 frames, all 18 common CPU hosts advance, both services are active and 40 GiB is free.
+
+The slow gauge profile also prompted an investigation of roster preparation. That pass determines actual presence,
+value kinds and productive ordering, and fills existing bounded backing. The approved evaluation contract then
+requires fresh final reads. Approximately two dense passes therefore do not prove an unnecessary metadata-only
+scan. Removing that phase would need a separate contract decision; further work targets costs within those reads.
+Long-history and concurrent latency remain unresolved, along with the cumulative-histogram projection discussion.
+
 ## Follow-up: recent counter prefixes — 2026-10-29
 
-Runtime `2fd6756b6e` is installed. The C provider keeps one recent pre-sample counter value in the existing
+Runtime `2fd6756b6e` was installed for this comparison. The C provider keeps one recent pre-sample counter value in the existing
 physical metric's query state. Subsequent cursors can reuse it while retaining the indexed checkpoint lookup,
 query origin, reset/gap behavior and successful-only publication. No raw history or new metadata owner is retained.
 The [controlled qualification](../RECENT_COUNTER_PREFIX.md) reduces 32,895 reconstruction folds to 764 in a

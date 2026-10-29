@@ -1,0 +1,676 @@
+{
+  "schema": 1,
+  "date": "2026-10-29",
+  "engine_commit": "63ebe3ca5901adfa319c5adeb50e03cb632889ff",
+  "previous_engine_commit": "2fd6756b6e993dbed2058cb255378d6c75f73803",
+  "installed_binary_sha256": "5eacb15e8d5a795c17cefb740915eca75cb369d51d7b66729e62bf6c851a71b1",
+  "deployment": {
+    "unit": "promql-deploy-63ebe3ca59",
+    "invocation": "fe3376763ed343a485bc837ec4284846",
+    "installer_exit": 0,
+    "protected_configuration_comparisons": "passed",
+    "smoke_query": "passed"
+  },
+  "captures": {
+    "before": {
+      "file": "journal-metric-lookup-before-measurements.jsonl.gz",
+      "sha256": "2e30b952817a43920fc13646e315ad1a874a02402ea67622928ba55f7b706688",
+      "uncompressed_sha256": "bfe8dad3a4c299b5c5fdc227438e230b1b1e823c864cf8988a87522f76fe1d45",
+      "records": 380,
+      "queries": 360,
+      "complete_response_bodies_retained_privately": true,
+      "response_body_compressed_bytes": 1644481
+    },
+    "after": {
+      "file": "journal-metric-lookup-after-measurements.jsonl.gz",
+      "sha256": "6fd816f860a9e8cbe7f28e4cd522b72ea48db6b62abad27c64f03eec8aa84b35",
+      "uncompressed_sha256": "a618ba11b9daaec52f24bd751b21c050a0822de25aec150d1385cf30cecdb8a2",
+      "records": 380,
+      "queries": 360,
+      "complete_response_bodies_retained_privately": true,
+      "response_body_compressed_bytes": 1644396
+    }
+  },
+  "comparison": {
+    "file": "journal-metric-lookup-comparison.json.gz",
+    "sha256": "e3425a112155a78c45aa29a282cbb45c8e7fb081b7f1b82ac7e337a4330614b2",
+    "uncompressed_sha256": "1d01ec1202cd421c54d1bf409aeeef7ccb165084813a8e3766b8e8942c3efe10"
+  },
+  "before_summary": [
+    {
+      "cohort": "fleet4",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 127,
+        "empty": 9
+      },
+      "seconds": 180.70799975498812
+    },
+    {
+      "cohort": "instant-fleet",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 124,
+        "empty": 12
+      },
+      "seconds": 129.70009898697026
+    },
+    {
+      "cohort": "focus-host",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 10,
+        "empty": 6
+      },
+      "seconds": 31.837617653014604
+    },
+    {
+      "cohort": "focus-group",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 12,
+        "empty": 4
+      },
+      "seconds": 38.75794311601203
+    },
+    {
+      "cohort": "focus-fleet",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 53.78442022099625
+    },
+    {
+      "cohort": "focus-fleet8",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 22.09990894899238
+    },
+    {
+      "cohort": "focus-6h",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 4,
+        "empty": 2,
+        "error": 2
+      },
+      "seconds": 74.1436102600419
+    },
+    {
+      "cohort": "focus-24h",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 5,
+        "empty": 1,
+        "error": 2
+      },
+      "seconds": 89.58488361898344
+    },
+    {
+      "cohort": "focus-7d",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 3,
+        "error": 5
+      },
+      "seconds": 167.55510807503015
+    }
+  ],
+  "after_summary": [
+    {
+      "cohort": "fleet4",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 126,
+        "empty": 9,
+        "error": 1
+      },
+      "seconds": 186.39231254300103
+    },
+    {
+      "cohort": "instant-fleet",
+      "requests": 136,
+      "outcomes": {
+        "nonempty": 124,
+        "empty": 12
+      },
+      "seconds": 141.56731720495736
+    },
+    {
+      "cohort": "focus-host",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 10,
+        "empty": 6
+      },
+      "seconds": 31.736092342995107
+    },
+    {
+      "cohort": "focus-group",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 12,
+        "empty": 4
+      },
+      "seconds": 36.54191070102388
+    },
+    {
+      "cohort": "focus-fleet",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 53.43668311799411
+    },
+    {
+      "cohort": "focus-fleet8",
+      "requests": 16,
+      "outcomes": {
+        "nonempty": 14,
+        "empty": 2
+      },
+      "seconds": 25.407340125995688
+    },
+    {
+      "cohort": "focus-6h",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 4,
+        "empty": 2,
+        "error": 2
+      },
+      "seconds": 75.55449612397933
+    },
+    {
+      "cohort": "focus-24h",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 5,
+        "empty": 1,
+        "error": 2
+      },
+      "seconds": 96.21910503698746
+    },
+    {
+      "cohort": "focus-7d",
+      "requests": 8,
+      "outcomes": {
+        "nonempty": 3,
+        "error": 5
+      },
+      "seconds": 162.4388001599582
+    }
+  ],
+  "successful_pairs": 350,
+  "ordered_equal": 277,
+  "unordered_equal": 344,
+  "diagnostics_equal": 350,
+  "same_series_point_counts": 350,
+  "same_labels_and_timestamps": 350,
+  "all_request_diagnostics_equal": 360,
+  "transitions": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "before": "nonempty",
+      "after": "error"
+    }
+  ],
+  "remaining": [
+    {
+      "cohort": "fleet4",
+      "id": "nd-pql-data-availability/4/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.090496585995425
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.0408121770015
+    },
+    {
+      "cohort": "focus-24h",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.029322621994652
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.03158460598206
+    },
+    {
+      "cohort": "focus-6h",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.02048248902429
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-alert-expressions/6/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.007117009023204
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-applications/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.026205021014903
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-fleet-capacity/1/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.00545003497973
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-history-comparisons/8/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.009835314995144
+    },
+    {
+      "cohort": "focus-7d",
+      "id": "nd-pql-service-instances/7/A",
+      "repeat": 0,
+      "error_type": "timeout",
+      "seconds": 25.045229936018586
+    }
+  ],
+  "average_order_explanation": {
+    "checks": [
+      {
+        "phase": "before",
+        "query": "applications",
+        "exact_matched_points": 6087,
+        "inner_rows": 736,
+        "observed_host_order_sha256": "f598e4dba1b36d2fef380d2dddd2ccad620d3086ab4662acbb629c246c3ac1a2"
+      },
+      {
+        "phase": "before",
+        "query": "bandwidth",
+        "exact_matched_points": 31,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "f598e4dba1b36d2fef380d2dddd2ccad620d3086ab4662acbb629c246c3ac1a2"
+      },
+      {
+        "phase": "after",
+        "query": "applications",
+        "exact_matched_points": 6087,
+        "inner_rows": 736,
+        "observed_host_order_sha256": "53f6c1887de2ed7aff7c2c8867eb7d25885093c4a06fb96bc432a16ade7588b8"
+      },
+      {
+        "phase": "after",
+        "query": "bandwidth",
+        "exact_matched_points": 31,
+        "inner_rows": 18,
+        "observed_host_order_sha256": "53f6c1887de2ed7aff7c2c8867eb7d25885093c4a06fb96bc432a16ade7588b8"
+      }
+    ],
+    "differences": [
+      {
+        "query": "applications",
+        "points": 6087,
+        "changed_points": 7,
+        "max_ulp_difference": 2
+      },
+      {
+        "query": "bandwidth",
+        "points": 31,
+        "changed_points": 1,
+        "max_ulp_difference": 1
+      }
+    ],
+    "inner_values_identical": true,
+    "observed_host_order_changed": true,
+    "exact_reproduction": true,
+    "scope": "Finite captured values only; host order is observed in separate same-cohort queries, not instrumented inside the nested averages.",
+    "interpretation": "The observed host order exactly explains the differences. Restart-mediated metadata loading is an inferred cause of that order change.",
+    "runner_sha256": "8e3485906a64e9f79d8b440ad90b2209f3c0243219efd923d5f69c3fb1985b42",
+    "arithmetic_sources": {
+      "src/crates/promql-engine/src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+      "src/crates/promql-engine/src/aggregation.rs": "2d5b6cc5381eecc4c717b52b24adf4906fb21571c073e443388cbb9ddb859bb6"
+    }
+  },
+  "changed_storage_tier_inputs": {
+    "cases": [
+      {
+        "cohort": "focus-24h",
+        "id": "nd-pql-fleet-bandwidth/1/A",
+        "expression_template": "sum(rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"InOctets\"}[$__rate_interval]))",
+        "changed_points": 15,
+        "changed_timestamp_range": [
+          1792957500,
+          1792965000
+        ],
+        "max_absolute_change": 3.4790973236085847,
+        "before_tiers": [
+          {
+            "pageEncounters": 20049,
+            "points": 15194424
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          }
+        ],
+        "after_tiers": [
+          {
+            "pageEncounters": 19845,
+            "points": 15102738
+          },
+          {
+            "pageEncounters": 195,
+            "points": 9714
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          }
+        ],
+        "before_response_sha256": "2f69e19b95227dbd6fc2d2849e085a8ad7c63b1c3cb015e98aa317d7b56eab6e",
+        "after_response_sha256": "902905e94394220197059cbbd693149e577049c61be5cb4ce9e1785facdcbd47"
+      },
+      {
+        "cohort": "focus-24h",
+        "id": "nd-pql-fleet-capacity/1/A",
+        "expression_template": "100 * sum(system_ram{netdata_host_name=~\"${host}\",netdata_dimension_id=\"used\"}) / sum(system_ram{netdata_host_name=~\"${host}\"})",
+        "changed_points": 13,
+        "changed_timestamp_range": [
+          1792957500,
+          1792961100
+        ],
+        "max_absolute_change": 7.178371721039412e-05,
+        "before_tiers": [
+          {
+            "pageEncounters": 21985,
+            "points": 15285430
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          }
+        ],
+        "after_tiers": [
+          {
+            "pageEncounters": 21680,
+            "points": 15020295
+          },
+          {
+            "pageEncounters": 275,
+            "points": 10965
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          }
+        ],
+        "before_response_sha256": "6910cf79dc202d6766f499c055c915982a521ae036e8e67845f5309f9e18ef0d",
+        "after_response_sha256": "9d167a2a070665a4fa39ef410fd4762974405666c886f626da1404d871166165"
+      },
+      {
+        "cohort": "focus-24h",
+        "id": "nd-pql-history-comparisons/8/A",
+        "expression_template": "max_over_time(((100 - avg by (netdata_host_id,netdata_host_name) (system_cpu{netdata_host_name=~\"${host}\",netdata_dimension_id=\"idle\"})))[5m:30s])",
+        "changed_points": 13,
+        "changed_timestamp_range": [
+          1792957500,
+          1792961100
+        ],
+        "max_absolute_change": 1.6480489795918487,
+        "before_tiers": [
+          {
+            "pageEncounters": 4843,
+            "points": 3263561
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          }
+        ],
+        "after_tiers": [
+          {
+            "pageEncounters": 4332,
+            "points": 2823499
+          },
+          {
+            "pageEncounters": 508,
+            "points": 32689
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          }
+        ],
+        "before_response_sha256": "5f4058da5fef3f32a05b6b6ed99db34ff9a7d8a3543197a25453e1389d95c96e",
+        "after_response_sha256": "cd682627a7f112c343da208b46308a010b800ebac60582bd459000822608d20a"
+      },
+      {
+        "cohort": "focus-7d",
+        "id": "nd-pql-fleet-bandwidth/1/A",
+        "expression_template": "sum(rate(system_net{netdata_host_name=~\"${host}\",netdata_dimension_id=\"InOctets\"}[$__rate_interval]))",
+        "changed_points": 3,
+        "changed_timestamp_range": [
+          1792958400,
+          1792962000
+        ],
+        "max_absolute_change": 1.6143873180262744,
+        "before_tiers": [
+          {
+            "pageEncounters": 46755,
+            "points": 43919375
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          }
+        ],
+        "after_tiers": [
+          {
+            "pageEncounters": 45843,
+            "points": 43596845
+          },
+          {
+            "pageEncounters": 903,
+            "points": 49650
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          },
+          {
+            "pageEncounters": 0,
+            "points": 0
+          }
+        ],
+        "before_response_sha256": "868c945f7f934bbb1d824702bbc48dc9ce412ac338d1dbab153d72163e4ccf93",
+        "after_response_sha256": "04bf2f42be03a1fafeeff65d71000291a35a835abd929f3ce0c455ef369ccb9e"
+      }
+    ],
+    "sources": {
+      "src/database/engine/mrg.c": "23bc3d2456d4885073cc36e1b2771e7a4d170cad7008b6f5cacfc1e9f6796ff0",
+      "src/web/api/promql/metadata.c": "bf524b0cd2426396697bceffb81b4a1258da014cd72a354d1a8f619a152c8b96",
+      "src/web/api/promql/provider.c": "31431ee9be0c898b844ab56a69f935b8ee0b9dec66f53fbd50ebbda442fc1f5d"
+    },
+    "runner_sha256": "ebb020b8c3e3dd0e0e916593084279a673eaa740e94d397830d407ec28968d93",
+    "interpretation": "All four non-average differences used tier0 only before and both tier0/tier1 after. Tier spans are frozen from metric retention before cursor journal selection; these owner sources did not change in the candidate. These are changed-storage-tier observations, not qualified same-input numerical comparisons. Exact eviction events and original per-point raw inputs were not captured, so this does not reproduce each changed value.",
+    "evidence_limits": "Retention progression or restart metadata loading can explain changed tier plans; the specific cause was not reconstructed. The live evidence does not establish numerical equivalence for these four cases."
+  },
+  "successful_pair_median_elapsed_ratio": 1.0341257339468792,
+  "same_sample_count_pairs": 336,
+  "memory_acquisition_comparison": {
+    "workspace": {
+      "acquired_before": 34039022661,
+      "acquired_after": 34833889711,
+      "queries_with_lower_acquired": 19,
+      "queries_with_higher_acquired": 43,
+      "queries_with_lower_peak": 40,
+      "queries_with_higher_peak": 122
+    },
+    "accounting": {
+      "acquired_before": 19777244288,
+      "acquired_after": 19853820160,
+      "queries_with_lower_acquired": 0,
+      "queries_with_higher_acquired": 213,
+      "queries_with_lower_peak": 0,
+      "queries_with_higher_peak": 56
+    },
+    "providerHeld": {
+      "acquired_before": 49824011923,
+      "acquired_after": 49903751087,
+      "queries_with_lower_acquired": 0,
+      "queries_with_higher_acquired": 213,
+      "queries_with_lower_peak": 0,
+      "queries_with_higher_peak": 1
+    },
+    "borrowedView": {
+      "acquired_before": 24041755010,
+      "acquired_after": 27907981005,
+      "queries_with_lower_acquired": 3,
+      "queries_with_higher_acquired": 98,
+      "queries_with_lower_peak": 1,
+      "queries_with_higher_peak": 19
+    }
+  },
+  "share": {
+    "route": "grafana-backend",
+    "http_status": 200,
+    "query_status": 200,
+    "frames": 79,
+    "seconds": 4.644023924018256,
+    "has_error": false
+  },
+  "reception": {
+    "hosts_before": 18,
+    "hosts_after": 18,
+    "common": 18,
+    "advanced": 18,
+    "before_seconds": 16.566859190992545,
+    "after_seconds": 1.7284367709653452
+  },
+  "artifacts": {
+    ".tmp/practical-replay-j32eeh4e/journal49-comparison.json": "1d01ec1202cd421c54d1bf409aeeef7ccb165084813a8e3766b8e8942c3efe10",
+    ".tmp/practical-replay-j32eeh4e/journal49-average-order-explanation.json": "acb2e78209ba0b4c57d7b6a49a9b72c9937c8b1575fd0f2476a8031140039fcb",
+    ".tmp/practical-replay-j32eeh4e/journal49-deployment.json": "69ae50afe01feb1a4a4a694ba06760d03438c8932ce13a80e00b1e3385614a3b",
+    ".tmp/practical-replay-j32eeh4e/journal49-tier-inputs.json": "371c02ba00ff74319f2e7b5151a7e98961423fe72aa238db2cdff9f9b37511b0",
+    ".tmp/practical-replay-j32eeh4e/journal49before-live-receipt.json": "54f83e1bb8fb72adc22f43ce1797d256848e9c827f0114da9d2c81de39d5c7e9",
+    ".tmp/practical-replay-j32eeh4e/journal49before-runtime.json": "ee2bda700cc28a128f7662cda99cf7affc4f4aa8f2a1c0244b9d677b6555dfd0",
+    ".tmp/practical-replay-j32eeh4e/journal49after-live-receipt.json": "5059bdd4de7e9711b57693091f8fe6f73563548618ad99466e9bce908498a2a8",
+    ".tmp/practical-replay-j32eeh4e/journal49after-runtime.json": "fc97871c334f3bc233af8d10cfd6a0efafccef7f88bd00573e34c4be88cc96c8",
+    ".tmp/practical-replay-j32eeh4e/deploy_journal49.py": "79e381312b2dae4da3ca75441272e8139a30edd6a986d493d40b8e3a5e9615fc",
+    ".tmp/practical-replay-j32eeh4e/compare_journal49.py": "2f1ed515fefe9ab5bd11e8345b9dae9a158123f2b3b98b663283a5d44d66751d",
+    ".tmp/practical-replay-j32eeh4e/explain_journal49_averages.py": "8e3485906a64e9f79d8b440ad90b2209f3c0243219efd923d5f69c3fb1985b42",
+    ".tmp/practical-replay-j32eeh4e/publish_journal49_live.py": "e8c4dacd10e004c3bbdd1e92090c4ad183f35423a1df5c7e9eb9d8b250641587",
+    ".tmp/practical-replay-j32eeh4e/journal49_tier_inputs.py": "ebb020b8c3e3dd0e0e916593084279a673eaa740e94d397830d407ec28968d93",
+    ".tmp/practical-replay-j32eeh4e/adapter_live_responses.py": "cb915148290947019634593a36141b85d920d77f6b3b5b4fafe4390075148a43",
+    ".tmp/practical-replay-j32eeh4e/live_with_responses.py": "1d9ea602b36fd9768e007467cfa136bfab51332720ae48d2c5f8ab66e51c37da",
+    ".tmp/practical-replay-j32eeh4e/journal49-deployment.stdout": "0c4ee5b550680ee093670de679824d973fe8620c94c7cd43220199ee493e4115",
+    ".tmp/practical-replay-j32eeh4e/journal49-deployment.stderr": "5e2247bc0d2905e2455c88e3563beb2cb0e40b19f66169291e13c45d34468fe1",
+    ".tmp/practical-replay-j32eeh4e/journal49-deployment-journal.stdout": "fac0e60678db27a5728a9c3534cf6a79c650347cf1755d3d9cfe4bb44f513d58"
+  },
+  "interpretation": [
+    "A journal metric search now uses one mapped-access context. Isolated lookup costs are qualified separately from these complete live queries.",
+    "Four long-history results used tier0 only before and tier0/tier1 after; they are not qualified same-input comparisons. Exact per-point differences were not reconstructed.",
+    "This live replay establishes no overall latency improvement:351/360 successes before,350/360 after, successful-pair median elapsed ratio1.034.",
+    "The report retains every timeout and the complete result comparison; a transition between timeout and success does not alone establish its cause.",
+    "Provider order is preserved by decision9 outside designated unspecified intermediate boundaries. The separate average explanation checks actual inputs, host order and exact outputs.",
+    "Same expressions, scopes, windows, steps and deadlines; live storage, cache residency and background work are not immutable.",
+    "Acquired memory is cumulative allocation or borrowed exposure traffic, not simultaneous RAM. Timeout counters describe partial execution.",
+    "Remaining long-history and concurrent-query failures stay open. Histogram73 remains unapproved; historical bucket-boundary repair is excluded by71."
+  ]
+}
