@@ -421,6 +421,7 @@ fn replay<S: Series, E: From<StorageError> + From<Interrupted>>(
         start,
         control,
         account,
+        true,
         |sample, origin| {
             replay.current_time_ms = Some(sample.time_ms);
             match origin {
@@ -620,6 +621,175 @@ mod tests {
             statistics: false,
             reduce_delta: true,
             resume: None,
+        }
+    }
+
+    fn scheduled_float(index: usize) -> Sample {
+        Sample {
+            time_ms: index as i64 * 10,
+            start_time_ms: 0,
+            value: SampleValue::Float(index as f64 + 1.0),
+        }
+    }
+    fn scheduled_native(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::FloatHistogram(FloatHistogram {
+                zero_threshold: 0.001,
+                zero_count: index as f64 + 1.0,
+                count: index as f64 + 1.0,
+                sum: index as f64 + 1.0,
+                ..FloatHistogram::default()
+            }),
+            ..scheduled_float(index)
+        }
+    }
+    fn scheduled_window(statistics: bool) -> MatrixWindow {
+        MatrixWindow {
+            first_end_ms: 30,
+            end_ms: 70,
+            range_ms: 10,
+            step_ms: 20,
+            data_bounds: TimeBounds {
+                start_ms: 0,
+                end_ms: 70,
+            },
+            statistics,
+            ..window()
+        }
+    }
+
+    #[test]
+    fn scheduled_matrix_acquisition_preserves_values_progress_and_credits() {
+        for page in [1, 17, 1024] {
+            for native in [false, true] {
+                for statistics in [false, true] {
+                    let source = GeneratedSeries::new(
+                        8,
+                        page,
+                        if native {
+                            scheduled_native
+                        } else {
+                            scheduled_float
+                        },
+                    );
+                    let account = EngineAccounting::default().query();
+                    let physical = scheduled_window(statistics);
+                    let mut visited = 0;
+                    let result = acquire::<_, StorageError>(
+                        &source,
+                        TimeBounds {
+                            start_ms: 61,
+                            end_ms: 70,
+                        },
+                        physical,
+                        &Control::default(),
+                        &account,
+                        |sample| {
+                            visited += 1;
+                            assert_eq!((sample.time_ms, sample.start_time_ms), (70, 0));
+                            match sample.value {
+                                SampleValueRef::Float(value) => {
+                                    assert!(!native);
+                                    assert_eq!(value.to_bits(), 8.0_f64.to_bits());
+                                }
+                                SampleValueRef::FloatHistogram(histogram) => {
+                                    assert!(native);
+                                    let expected = FloatHistogram {
+                                        reset_hint: if statistics {
+                                            NOT_RESET
+                                        } else {
+                                            crate::histogram::UNKNOWN_RESET
+                                        },
+                                        zero_threshold: if statistics { 0.0 } else { 0.001 },
+                                        zero_count: if statistics { 0.0 } else { 8.0 },
+                                        count: 8.0,
+                                        sum: 8.0,
+                                        ..FloatHistogram::default()
+                                    };
+                                    assert!(histogram.equals(expected.as_ref()));
+                                    assert_eq!(histogram.reset_hint, expected.reset_hint);
+                                    assert!(
+                                        histogram.positive_spans.is_none()
+                                            && histogram.negative_spans.is_none()
+                                    );
+                                    assert!(
+                                        histogram.positive_buckets.is_none()
+                                            && histogram.negative_buckets.is_none()
+                                    );
+                                    assert!(histogram.custom_values.is_none());
+                                }
+                                _ => panic!("unexpected sample kind"),
+                            }
+                            Ok(())
+                        },
+                    )
+                    .unwrap();
+                    let units = if native { 11 } else { 1 };
+                    assert_eq!(visited, 1);
+                    assert!(result.populated);
+                    assert_eq!(
+                        result.progress,
+                        Progress {
+                            geometry: Geometry::from(physical),
+                            end_ms: 70,
+                            last_time_ms: 70,
+                            current_time_ms: Some(70),
+                            histograms_allocated: native,
+                            start: Some(Start {
+                                target_ms: 60,
+                                histograms_allocated: native
+                            }),
+                            sample_units: units,
+                        }
+                    );
+                    assert_eq!(account.snapshot().statistics.samples.samples_read, units);
+                    assert_eq!(source.counters.opened.load(Ordering::Relaxed), 2);
+                    assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                    assert_closed(&source, &account);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn scheduled_matrix_acquisition_reuses_the_current_page_but_keeps_final_seek() {
+        for page in [1, 17, 1024] {
+            let source = ObservedSeries {
+                source: GeneratedSeries::new(8, page, scheduled_float),
+                seeks: RefCell::new(Vec::new()),
+                fail_seek: None,
+                panic_next_at: Cell::new(None),
+            };
+            let account = EngineAccounting::default().query();
+            acquire::<_, StorageError>(
+                &source,
+                TimeBounds {
+                    start_ms: 61,
+                    end_ms: 70,
+                },
+                scheduled_window(false),
+                &Control::default(),
+                &account,
+                ignore_sample,
+            )
+            .unwrap();
+            let seeks = source.seeks.borrow();
+            let fetched = account.snapshot().samples_fetched;
+            let calls = source.source.counters.next_calls.load(Ordering::Relaxed);
+            eprintln!(
+                "matrix-page page={page} seeks={seeks:?} fetched={fetched} next_calls={calls}"
+            );
+            assert_eq!(
+                seeks.as_slice(),
+                if page == 1 {
+                    &[20, 40, 60, 60][..]
+                } else {
+                    &[60][..]
+                }
+            );
+            assert_eq!(fetched, if page == 1 { 9 } else { 10 });
+            assert_eq!(calls, if page == 1 { 9 } else { 2 });
+            assert_closed(&source.source, &account);
         }
     }
 

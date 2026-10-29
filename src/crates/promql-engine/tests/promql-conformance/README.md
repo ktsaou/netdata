@@ -28,6 +28,9 @@ provider-owned backing. No second raw-storage page cache or enabled admission li
 native C component measurements. Polling locations and explicit deadlines remain unchanged.
 [Direct Count aggregate labels](COUNT_GROUP_LABELS.md) reuse existing group labels after completed Count values,
 with current provider-label validation and ordinary fallbacks preserved.
+[Matrix page reuse](MATRIX_PAGE_REUSE.md) advances within the currently borrowed page during matrix acquisition,
+retaining full-tail validation, native decoder phases and physical initial/final seeks. It does not retain raw
+history or cursors between acquisitions; the guide separates replay-path gains from unchanged direct controls.
 
 Retained qualification covers:
 
