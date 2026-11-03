@@ -45,7 +45,7 @@ DISCOVERY_CASES = {"negative", "reversed", "between-seconds", "zero", "positive-
 OUTPUT_CASES = {"scalar-no-backing", "string-escaping", "vector-no-backing", "large-no-backing",
                 "plain-2049", "plain-100000", "gzip-2049", "gzip-100000"}
 NATIVE_CASES = {"plain-2049", "plain-100000", "gzip-2049", "gzip-100000"}
-METADATA_REF_CASES = {"immutable-source-views", "archived-cold", "archived-hit", "names-one-context", "names-archived-unloaded", "names-first-witness",
+METADATA_REF_CASES = {"context-prefilters", "immutable-source-views", "archived-cold", "archived-hit", "names-one-context", "names-archived-unloaded", "names-first-witness",
                       "names-later-tier-witness", "names-retention-hole", "names-no-retention"}
 REQUEST_CASES = {"body-first", "escaped-separators", "embedded-nul", "empty-first", "invalid-field", "semicolon-order",
                  "escaped-semicolon", "non-form-body", "mime-error-first", "mime-duplicate-same",

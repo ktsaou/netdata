@@ -248,6 +248,158 @@ static int names_retention_fixture(netdata_promql_engine_t *engine) {
     return errors;
 }
 
+typedef struct {
+    RRDSET *chart;
+    RRDDIM *dimension;
+    netdata_promql_control_t *control;
+    int errors;
+    unsigned checks;
+} CONTEXT_FILTER_PROBE;
+
+static void context_filter_scan(CONTEXT_FILTER_PROBE *probe, PROMQL_PROVIDER_QUERY *query,
+                                 const netdata_promql_accounting_context_t *account,
+                                 netdata_promql_matcher_t *matchers, size_t count, const char *name,
+                                 unsigned expected_rows, uint32_t expected_status, const char *expected_context,
+                                 netdata_promql_series_open_t *retained) {
+    PROMQL_SELECTION *selection = promql_malloc(account, NETDATA_PROMQL_MEMORY_PROVIDER_HELD, sizeof(*selection));
+    if(!selection) { probe->errors++; return; }
+    selection->query = query;
+    PROMQL_READ_FRAME frame = {.account = account, .call_control = probe->control};
+    netdata_promql_bytes_t error = {0};
+    uint32_t status = NETDATA_PROMQL_PROVIDER_ERROR;
+    unsigned rows = 0;
+    int errors = 0;
+    netdata_promql_provider_t provider = promql_provider(query->context);
+    if(promql_selection_prefilters(selection, (netdata_promql_matchers_t){matchers, count}, account)) {
+        for(;;) {
+            netdata_promql_series_open_t series = {0};
+            status = promql_metadata_next(selection, &frame, &series, &error);
+            if(status != NETDATA_PROMQL_OK) break;
+            rows++;
+            const netdata_promql_label_t *label = find_label(series.labels, "netdata_context");
+            errors += !label || (expected_context && promql_label_compare(label->value, promql_bytes(expected_context)));
+            if(retained && !retained->handle) *retained = series;
+            else provider.series_close(provider.context, series.handle, account);
+        }
+    }
+    promql_selection_destroy(selection);
+    errors += status != expected_status || rows != expected_rows;
+    if(errors) fprintf(stderr, "context filter %s: rows=%u/%u status=%u/%u errors=%d\n",
+        name, rows, expected_rows, status, expected_status, errors);
+    probe->errors += errors;
+    probe->checks++;
+}
+
+static void context_filter_accounted(void *context, void *handle __maybe_unused,
+                                      const netdata_promql_accounting_context_t *account) {
+    CONTEXT_FILTER_PROBE *probe = context;
+    PROMQL_PROVIDER_CONTEXT provider_context = {.scope = PROMQL_HOST_GUID, .host = localhost->machine_guid};
+    PROMQL_PROVIDER_QUERY query = {.context = &provider_context, .first = REFERENCE_BASE, .last = REFERENCE_BASE + 10};
+    netdata_promql_matcher_t exact = {.kind = NETDATA_PROMQL_MATCH_EQUAL,
+        .name = promql_bytes("__name__"), .value = promql_bytes("fixture.filter")};
+    netdata_promql_matcher_t alias = exact;
+    alias.value = promql_bytes("fixture_filter");
+    netdata_promql_matcher_t context_match = {.kind = NETDATA_PROMQL_MATCH_EQUAL,
+        .name = promql_bytes("netdata_context"), .value = promql_bytes("fixture.filter")};
+    netdata_promql_matcher_t pairs[] = {exact, alias};
+    context_filter_scan(probe, &query, account, &exact, 1, "exact", 2, NETDATA_PROMQL_END, "fixture.filter", NULL);
+    context_filter_scan(probe, &query, account, &alias, 1, "alias-collision", 3, NETDATA_PROMQL_END, NULL, NULL);
+    context_filter_scan(probe, &query, account, pairs, 2, "one-alias-must-match-all", 0, NETDATA_PROMQL_END, NULL, NULL);
+    pairs[0] = context_match; pairs[1] = alias;
+    context_filter_scan(probe, &query, account, pairs, 2, "context-and-alias", 2, NETDATA_PROMQL_END, "fixture.filter", NULL);
+    pairs[1].kind = NETDATA_PROMQL_MATCH_NOT_EQUAL;
+    context_filter_scan(probe, &query, account, pairs, 2, "one-name-survives", 2, NETDATA_PROMQL_END, "fixture.filter", NULL);
+    netdata_promql_matcher_t exclusions[] = {context_match, exact, alias};
+    exclusions[1].kind = exclusions[2].kind = NETDATA_PROMQL_MATCH_NOT_EQUAL;
+    context_filter_scan(probe, &query, account, exclusions, 3, "both-names-excluded", 0, NETDATA_PROMQL_END, NULL, NULL);
+    pairs[1] = (netdata_promql_matcher_t){.kind = NETDATA_PROMQL_MATCH_EQUAL,
+        .name = promql_bytes("netdata_dimension_id"), .value = promql_bytes("value")};
+    context_filter_scan(probe, &query, account, pairs, 2, "dimension-equal", 2, NETDATA_PROMQL_END, "fixture.filter", NULL);
+    pairs[1].kind = NETDATA_PROMQL_MATCH_NOT_EQUAL;
+    context_filter_scan(probe, &query, account, pairs, 2, "dimension-excluded", 0, NETDATA_PROMQL_END, NULL, NULL);
+    pairs[1] = (netdata_promql_matcher_t){.kind = NETDATA_PROMQL_MATCH_EQUAL,
+        .name = promql_bytes("netdata_host_id"), .value = promql_bytes("absent-host")};
+    context_filter_scan(probe, &query, account, pairs, 2, "host-excluded", 0, NETDATA_PROMQL_END, NULL, NULL);
+
+    RRDINSTANCE *instance = rrdinstance_acquired_value(probe->chart->rrdcontexts.rrdinstance);
+    RRDMETRIC *metric = rrdmetric_acquired_value(probe->dimension->rrdcontexts.rrdmetric);
+    rrdinstance_metadata_lock(instance);
+    UUIDMAP_ID saved_uuid = metric->uuid;
+    metric->uuid = 0;
+    rrdinstance_metadata_unlock(instance);
+    netdata_promql_matcher_t other = context_match;
+    other.value = promql_bytes("fixture_filter");
+    context_filter_scan(probe, &query, account, &other, 1, "excluded-identity-error", 1, NETDATA_PROMQL_END, "fixture_filter", NULL);
+    context_filter_scan(probe, &query, account, &exact, 1, "included-identity-error", 0, NETDATA_PROMQL_PROVIDER_ERROR, NULL, NULL);
+    rrdinstance_metadata_lock(instance);
+    metric->uuid = saved_uuid;
+    rrdinstance_metadata_unlock(instance);
+
+    RRD_CONTEXT_LOAD_STATE saved_load = __atomic_load_n(&localhost->rrdctx.initial_load, __ATOMIC_ACQUIRE);
+    __atomic_store_n(&localhost->rrdctx.initial_load, RRD_CONTEXT_LOAD_UNAVAILABLE, __ATOMIC_RELEASE);
+    context_filter_scan(probe, &query, account, pairs, 2, "readiness-before-filter", 0, NETDATA_PROMQL_PROVIDER_ERROR, NULL, NULL);
+    __atomic_store_n(&localhost->rrdctx.initial_load, saved_load, __ATOMIC_RELEASE);
+
+    netdata_promql_series_open_t retained = {0};
+    context_filter_scan(probe, &query, account, &exact, 1, "retain-before-move", 2, NETDATA_PROMQL_END, "fixture.filter", &retained);
+    RRDINSTANCE_ACQUIRED *old_instance = rrdinstance_acquired_dup(probe->chart->rrdcontexts.rrdinstance);
+    RRDCONTEXT_ACQUIRED *old_context = rrdcontext_acquired_dup(probe->chart->rrdcontexts.rrdcontext);
+    string_freez(probe->chart->context);
+    probe->chart->context = string_strdupz("fixture.moved");
+    rrdinstance_from_rrdset(probe->chart);
+    probe->errors += rrdmetric_acquired_value(probe->dimension->rrdcontexts.rrdmetric)->uuid != saved_uuid;
+    // Model collection of the old metadata after the real context migration.
+    dictionary_del(rrdinstance_acquired_value(old_instance)->rrdmetrics, "value");
+    context_filter_scan(probe, &query, account, &exact, 1, "old-context-not-rediscovered", 0, NETDATA_PROMQL_END, NULL, NULL);
+    other.value = promql_bytes("fixture.moved");
+    context_filter_scan(probe, &query, account, &other, 1, "new-context-keeps-frozen-labels", 2, NETDATA_PROMQL_END, "fixture.filter", NULL);
+    netdata_promql_provider_t provider = promql_provider(&provider_context);
+    if(retained.handle) provider.series_close(provider.context, retained.handle, account);
+    rrdinstance_release(old_instance);
+    rrdcontext_release(old_context);
+    probe->errors += netdata_promql_control_cancel(probe->control) != NETDATA_PROMQL_OK;
+    context_filter_scan(probe, &query, account, &other, 1, "cancelled", 0, NETDATA_PROMQL_CANCELLED, NULL, NULL);
+    probe->errors += query.used != 0 || query.hosts != NULL;
+    promql_free(query.physical);
+}
+
+static int context_filter_fixture(netdata_promql_engine_t *engine) {
+    RRDSET *charts[2] = {NULL, NULL};
+    CONTEXT_FILTER_PROBE probe = {0};
+    for(unsigned i = 0; i < 2; i++) {
+        charts[i] = rrdset_create(localhost, "promql_fixture", i ? "filter_collision" : "filter", NULL,
+            "fixture", i ? "fixture_filter" : "fixture.filter", "Context filter fixture", "units",
+            "fixture", "fixture", 1, 1, RRDSET_TYPE_LINE);
+        if(!charts[i]) { probe.errors++; break; }
+        RRDDIM *dimension = rrddim_add(charts[i], "value", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+        if(!dimension) { probe.errors++; break; }
+        rrddim_store_metric(dimension, (REFERENCE_BASE + 1) * USEC_PER_SEC, 5, SN_FLAG_NOT_ANOMALOUS);
+        rrddim_finalize_collection_and_check_retention(dimension);
+        if(!i) { probe.chart = charts[i]; probe.dimension = dimension; }
+    }
+    if(!probe.errors && netdata_promql_control_create(engine, NULL, &probe.control) == NETDATA_PROMQL_OK) {
+        netdata_promql_report_t *report = NULL;
+        int64_t limit;
+        probe.errors += netdata_promql_api_parse_limit(engine, (netdata_promql_bytes_t){0}, NULL, &limit, &report) != NETDATA_PROMQL_OK;
+        if(report) {
+            probe.errors += netdata_promql_report_accounted(report, context_filter_accounted, &probe, NULL) != NETDATA_PROMQL_OK;
+            netdata_promql_report_release(report);
+        }
+        else probe.errors++;
+        probe.errors += netdata_promql_control_release(probe.control) != NETDATA_PROMQL_OK;
+    }
+    else probe.errors++;
+    for(unsigned i = 0; i < 2; i++) if(charts[i]) rrdset_free(charts[i]);
+    netdata_promql_engine_observations_t observed = {0};
+    probe.errors += probe.checks != 16 || netdata_promql_engine_observations(engine, &observed) != NETDATA_PROMQL_OK ||
+        observed.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current || observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current;
+    printf("{\"metadata_ref_case\":\"context-prefilters\",\"errors\":%d,\"checks\":%u,\"rows\":0,\"pointer_checks\":0,"
+           "\"remaining_provider\":%"PRIu64",\"remaining_views\":%"PRIu64"}\n", probe.errors, probe.checks,
+           observed.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current,
+           observed.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current);
+    return probe.errors;
+}
+
 int promql_metadata_reference_fixture(netdata_promql_engine_t *engine, RRDSET *chart, RRDDIM *dimension) {
     REFERENCE_RESULT result = {.chart = chart, .dimension = dimension, .frozen = true,
         .chart_name = string_dup(chart->name)};
@@ -348,5 +500,6 @@ int promql_metadata_reference_fixture(netdata_promql_engine_t *engine, RRDSET *c
     errors += description_probe(engine, rrdinstance_acquired_value(no_dimensions->rrdcontexts.rrdinstance),
         "description-no-dimensions", 0, DESCRIPTION_NORMAL);
     rrdset_free(no_dimensions);
+    errors += context_filter_fixture(engine);
     return errors;
 }

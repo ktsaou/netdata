@@ -245,8 +245,8 @@ bool promql_selection_prefilters(PROMQL_SELECTION *selection, netdata_promql_mat
     return true;
 }
 
-static bool metadata_prefilter(PROMQL_SELECTION *selection, RRDCONTEXT *context, RRDMETRIC *metric,
-                                const netdata_promql_accounting_context_t *account, bool *failed) {
+static bool context_prefilter(PROMQL_SELECTION *selection, RRDCONTEXT *context,
+                               const netdata_promql_accounting_context_t *account, bool *failed) {
     unsigned names = 3;
     char *alias = NULL;
     for(size_t i = 0; i < selection->prefilter_count; i++) {
@@ -263,10 +263,9 @@ static bool metadata_prefilter(PROMQL_SELECTION *selection, RRDCONTEXT *context,
             if(matcher.kind == NETDATA_PROMQL_MATCH_NOT_EQUAL) { exact = !exact; alternate = !alternate; }
             names &= (exact ? 1U : 0U) | (alternate ? 2U : 0U);
         }
-        else {
+        else if(bytes_equal(matcher.name, "netdata_context") || bytes_equal(matcher.name, "netdata_host_id")) {
             const char *value = bytes_equal(matcher.name, "netdata_context") ? string2str(context->id) :
-                bytes_equal(matcher.name, "netdata_host_id") ? selection->host->host->machine_guid :
-                bytes_equal(matcher.name, "netdata_dimension_id") ? string2str(metric->id) : string2str(metric->name);
+                selection->host->host->machine_guid;
             bool equal = bytes_equal(matcher.value, value);
             if(equal != (matcher.kind == NETDATA_PROMQL_MATCH_EQUAL)) names = 0;
         }
@@ -274,6 +273,18 @@ static bool metadata_prefilter(PROMQL_SELECTION *selection, RRDCONTEXT *context,
     }
     promql_free(alias);
     return names != 0;
+}
+
+static bool dimension_prefilter(PROMQL_SELECTION *selection, RRDMETRIC *metric) {
+    for(size_t i = 0; i < selection->prefilter_count; i++) {
+        netdata_promql_matcher_t matcher = selection->prefilters[i];
+        const char *value;
+        if(bytes_equal(matcher.name, "netdata_dimension_id")) value = string2str(metric->id);
+        else if(bytes_equal(matcher.name, "netdata_dimension_name")) value = string2str(metric->name);
+        else continue;
+        if(bytes_equal(matcher.value, value) != (matcher.kind == NETDATA_PROMQL_MATCH_EQUAL)) return false;
+    }
+    return true;
 }
 
 static PROMQL_PHYSICAL *physical_create(PROMQL_SELECTION *selection, RRDCONTEXT *context, RRDINSTANCE *instance,
@@ -299,10 +310,8 @@ static PROMQL_PHYSICAL *physical_create(PROMQL_SELECTION *selection, RRDCONTEXT 
                 return physical;
             }
         }
-        bool prefilter_failed = false;
-        if(!metadata_prefilter(selection, context, metric, frame->account, &prefilter_failed)) {
+        if(!dimension_prefilter(selection, metric)) {
             rrdinstance_metadata_unlock(instance);
-            if(prefilter_failed) *status = promql_provider_error(query->context, "cannot account metric-name prefilter", error);
             return NULL;
         }
         if(!selection->names_only && !instance->rrdset &&
@@ -611,6 +620,14 @@ uint32_t promql_metadata_next(PROMQL_SELECTION *selection, PROMQL_READ_FRAME *fr
         }
         RRDINSTANCE *instance;
         if(!selection->instances_started) {
+            // Excluded contexts need neither dimension traversal nor metadata copies.
+            bool failed = false;
+            if(!context_prefilter(selection, context, frame->account, &failed)) {
+                if(failed) return promql_provider_error(selection->query->context,
+                    "cannot account metric-name prefilter", error);
+                traverse_next(&selection->contexts);
+                continue;
+            }
             instance = traverse_start(&selection->instances, context->rrdinstances);
             selection->instances_started = true;
         }
