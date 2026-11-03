@@ -626,3 +626,7 @@ capture had used candidate31 and is not the causal baseline for this comparison.
 The [journal page search optimization](JOURNAL_PAGE_SEARCH.md) retains the selected
 right-bound descriptor instead of reading it twice, with selection/expiry tests
 and isolated measurements.
+
+The [context prefilter change](CONTEXT_PREFILTERS.md) applies name, context and
+host-ID predicates before walking a context's dimensions, with focused tests and
+live before/after measurements.
