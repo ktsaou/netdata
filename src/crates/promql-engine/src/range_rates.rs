@@ -675,7 +675,7 @@ impl InstantStep {
             crate::matrix_reader::probe(series, bounds, window, control, account, |sample| {
                 if matches!(sample.value, SampleValueRef::Float(_)) {
                     if histogram_delivered {
-                        control.check()?;
+                        control.check_cancelled()?;
                         Ok(())
                     } else {
                         self.receive(sample, control, account)
@@ -711,7 +711,7 @@ impl InstantStep {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), StorageError> {
-        control.check()?;
+        control.check_cancelled()?;
         if sample.value.is_stale() {
             return Ok(());
         }

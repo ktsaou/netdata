@@ -445,7 +445,7 @@ impl FoldStep {
         account: &QueryAccounting,
     ) -> Result<(), FoldError> {
         use FoldKind::*;
-        control.check()?;
+        control.check_cancelled()?;
         if sample.value.is_stale() {
             return Ok(());
         }
@@ -853,7 +853,7 @@ pub(crate) fn fold<S: Series>(
             control,
             account,
             |sample| {
-                control.check()?;
+                control.check_cancelled()?;
                 account.work(1);
                 full_nonempty = true;
                 if sample.time_ms > start_ms {
@@ -930,7 +930,7 @@ pub(crate) fn fold<S: Series>(
             Some(progress)
         } else {
             let visit = |sample: SampleRef<'_>| {
-                control.check()?;
+                control.check_cancelled()?;
                 let include = options.anchor_start_ms.is_none_or(|start_ms| {
                     sample.time_ms > start_ms
                         || anchor.is_some_and(|(_, _, index)| index == position)

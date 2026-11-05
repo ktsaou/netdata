@@ -34927,4 +34927,107 @@ mod tests {
         drop(result);
         engine.accounting.snapshot().assert_memory_released();
     }
+    #[test]
+    fn raw_sample_walk_observes_deadline_mid_walk() {
+        // One long walk without per-sample clock reads must still stop at an expired deadline.
+        let engine = Engine::default();
+        let control = Control {
+            deadline: Some(std::time::Instant::now() + std::time::Duration::from_millis(2)),
+            ..Control::default()
+        };
+        let provider = FixtureProvider::new(4_000_000, 1024, 1);
+        let query = engine
+            .compile(
+                b"sum_over_time(counter_total[4000000s])",
+                options(false),
+                &control,
+            )
+            .unwrap();
+        let report = query.collect_reported(
+            &provider,
+            QueryRequest::Instant {
+                time_ms: 4_000_000_000,
+            },
+            &control,
+        );
+        assert!(
+            matches!(
+                report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                    Interrupted::Deadline
+                ))) | Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                    StorageError::Interrupted(Interrupted::Deadline)
+                )))
+            ),
+            "{:?}",
+            report.result.as_ref().err()
+        );
+        assert!(report.observations.samples_fetched < 4_000_000);
+        drop(report);
+        provider.assert_closed();
+    }
+    #[test]
+    fn raw_sample_walks_amortize_deadline_clock_reads() {
+        // Deadline cadence is owned by the walk stride; per-sample sites check cancellation only.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3600);
+        for expression in [
+            "counter_total",
+            "rate(counter_total[2m])",
+            "irate(counter_total[2m])",
+            "sum(rate(counter_total[2m]))",
+            "increase(counter_total[10m])",
+            "deriv(counter_total[10m])",
+            "avg_over_time(counter_total[10m])",
+            "max_over_time(counter_total[10m])",
+            "sum_over_time(counter_total[10m])",
+            "last_over_time(counter_total[10m])",
+            "changes(counter_total[10m])",
+            "resets(counter_total[10m])",
+            "stddev_over_time(counter_total[10m])",
+            "quantile_over_time(0.5, counter_total[10m])",
+            "mad_over_time(counter_total[10m])",
+            "predict_linear(counter_total[10m], 60)",
+            "present_over_time(counter_total[10m])",
+            "absent_over_time(counter_total[10m])",
+            "timestamp(counter_total)",
+        ] {
+            let engine = Engine::default();
+            let control = Control {
+                deadline: Some(deadline),
+                ..Control::default()
+            };
+            let provider = FixtureProvider::new(20_000, 1024, 3);
+            let mut engine_options = options(false);
+            engine_options.parser.experimental_functions = true;
+            let query = engine
+                .compile(expression.as_bytes(), engine_options, &control)
+                .unwrap();
+            crate::storage::clock_reads::take();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 900_000,
+                    end_ms: 19_800_000,
+                    step_ms: 60_000,
+                },
+                &control,
+            );
+            let sites = crate::storage::clock_reads::take();
+            assert!(report.result.is_ok(), "{expression}");
+            let fetched = report.observations.samples_fetched;
+            assert!(
+                !sites.is_empty() && fetched > 0,
+                "{expression}: no observed clock reads"
+            );
+            // Per-sample sites made about one clock read per fetched sample before the stride.
+            for ((file, line), reads) in &sites {
+                assert!(
+                    reads * 4 <= fetched,
+                    "{expression}: {file}:{line} read the clock {reads} times for {fetched} samples"
+                );
+            }
+            drop(report);
+            provider.assert_closed();
+        }
+    }
 }

@@ -17,6 +17,17 @@ impl<'a> HistogramWork<'a> {
             account: Some(account),
         }
     }
+    /// Cancellation-only variant for constant-time work inside loops that own deadline checks.
+    pub(crate) fn step_cancellable(self, units: usize) -> Result<(), Interrupted> {
+        if let Some(control) = self.control {
+            control.check_cancelled()?;
+        }
+        if let Some(account) = self.account {
+            account.work(units as u64);
+        }
+        Ok(())
+    }
+    #[cfg_attr(test, track_caller)]
     pub(crate) fn step(self, units: usize) -> Result<(), Interrupted> {
         if let Some(control) = self.control {
             control.check()?;

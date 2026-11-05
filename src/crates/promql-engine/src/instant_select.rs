@@ -443,8 +443,14 @@ fn scheduled<S: Series, P: Projector>(
                 last_time = sample.time_ms;
             }
             initial = false;
+            let mut stepped = false;
             loop {
-                control.check()?;
+                // Later iterations advance output steps without new samples and own the deadline.
+                if stepped {
+                    control.check()?;
+                } else {
+                    control.check_cancelled()?;
+                }
                 account.work(1);
                 let lower = lookup_ms.wrapping_sub(window.delta_ms);
                 if lower > last_time {
@@ -506,6 +512,7 @@ fn scheduled<S: Series, P: Projector>(
                 admitted = current.admitted.get();
                 drop(current);
                 lookup_ms = next;
+                stepped = true;
             }
         },
         observer,

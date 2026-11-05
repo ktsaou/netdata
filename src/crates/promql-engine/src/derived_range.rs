@@ -162,6 +162,8 @@ impl Kernel {
         if counting {
             crate::statistics::add_units(units, crate::statistics::weight(sample.value), account);
         }
+        // Derived points have no raw-walk stride; kernels only observe cancellation per sample.
+        control.check()?;
         self.receive(sample, control, account)
     }
 

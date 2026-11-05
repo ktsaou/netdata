@@ -143,7 +143,7 @@ impl Step {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), StorageError> {
-        control.check()?;
+        control.check_cancelled()?;
         if sample.value.is_stale() {
             return Ok(());
         }

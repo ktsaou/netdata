@@ -312,7 +312,8 @@ static uint32_t cursor_next(void *context __maybe_unused, void *handle,
             time_t timestamp = page.first + (time_t)position * page.cadence;
             if(timestamp > span.last || timestamp > cursor->last) break;
             STORAGE_POINT point = STORAGE_POINT_UNSET;
-            if(!rrdeng_reader_point(cursor->reader, position, &point, &operation, &failure))
+            // The batch loop polls before each page acquisition; this loop reads at most one page.
+            if(!rrdeng_reader_point(cursor->reader, position, &point, NULL, &failure))
                 return reader_error(cursor, &frame, failure, error);
             counted(owner, &owner->storage_points[span.tier], 1);
             double value;

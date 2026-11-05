@@ -735,10 +735,12 @@ impl OwnedValue {
         kind: MemoryKind,
         work: crate::histogram_work::HistogramWork<'_>,
     ) -> Result<Self, crate::storage::Interrupted> {
-        work.step(1)?;
         if let SampleValueRef::Float(value) = value {
+            // A constant-time copy leaves deadline cadence to the enclosing loop.
+            work.step_cancellable(1)?;
             return Ok(Self::Float(value));
         }
+        work.step(1)?;
         let context = AllocationContext::new(account, kind);
         let value = match value {
             SampleValueRef::Float(_) => unreachable!(),

@@ -433,7 +433,7 @@ fn replay<S: Series, E: From<StorageError> + From<Interrupted>>(
                 CursorOrigin::SeekLanding => replay.last_time_ms = sample.time_ms,
             }
             loop {
-                control.check()?;
+                control.check_cancelled()?;
                 account.work(1);
                 if window.range_ms == 0 {
                     if replay.finish_window(control, account)? {

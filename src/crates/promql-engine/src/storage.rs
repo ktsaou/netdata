@@ -123,15 +123,23 @@ impl Control {
             Ok(())
         }
     }
+    #[cfg_attr(test, track_caller)]
     pub fn check(&self) -> Result<(), Interrupted> {
         self.check_cancellation()?;
-        if self
-            .deadline
-            .is_some_and(|deadline| Instant::now() >= deadline)
-        {
+        #[cfg(test)]
+        let caller = std::panic::Location::caller();
+        if self.deadline.is_some_and(|deadline| {
+            #[cfg(test)]
+            clock_reads::observe(caller);
+            Instant::now() >= deadline
+        }) {
             return Err(Interrupted::Deadline);
         }
         Ok(())
+    }
+    /// Per-sample sites observe cancellation exactly; the enclosing walk owns deadline cadence.
+    pub(crate) fn check_cancelled(&self) -> Result<(), Interrupted> {
+        self.check_cancellation()
     }
     pub(crate) fn check_remaining(&self) -> (Result<(), Interrupted>, Option<Duration>) {
         self.check_remaining_with(Instant::now)
@@ -153,6 +161,53 @@ impl Control {
             }
         });
         (status, remaining)
+    }
+}
+/// Raw samples between deadline clock reads inside one walk; cancellation stays per sample.
+pub(crate) const CONTROL_STRIDE: u32 = 1024;
+/// Amortizes deadline clock reads over raw samples while observing cancellation on every tick.
+pub(crate) struct ControlStride<'a> {
+    control: &'a Control,
+    remaining: u32,
+}
+impl<'a> ControlStride<'a> {
+    /// The walk performs a full check before each page, so the stride starts after one.
+    pub(crate) fn new(control: &'a Control) -> Self {
+        Self {
+            control,
+            remaining: CONTROL_STRIDE,
+        }
+    }
+    pub(crate) fn tick(&mut self) -> Result<(), Interrupted> {
+        self.tick_with(Control::check)
+    }
+    fn tick_with(
+        &mut self,
+        full: impl FnOnce(&Control) -> Result<(), Interrupted>,
+    ) -> Result<(), Interrupted> {
+        self.control.check_cancellation()?;
+        self.remaining -= 1;
+        if self.remaining == 0 {
+            self.remaining = CONTROL_STRIDE;
+            return full(self.control);
+        }
+        Ok(())
+    }
+}
+#[cfg(test)]
+pub(crate) mod clock_reads {
+    use std::{cell::RefCell, collections::BTreeMap, panic::Location};
+    thread_local!(static READS: RefCell<BTreeMap<(&'static str, u32), u64>> = const {
+        RefCell::new(BTreeMap::new())
+    });
+    pub(crate) fn observe(caller: &'static Location<'static>) {
+        READS.with_borrow_mut(|reads| {
+            *reads.entry((caller.file(), caller.line())).or_default() += 1
+        });
+    }
+    /// Deadline clock reads made by `Control::check` on this thread, by call site.
+    pub(crate) fn take() -> BTreeMap<(&'static str, u32), u64> {
+        READS.with_borrow_mut(std::mem::take)
     }
 }
 #[derive(Debug, Eq, PartialEq)]
@@ -892,10 +947,10 @@ fn validate_walk_sample<E: From<StorageError> + From<Interrupted>>(
     minimum: i64,
     initial_floor: Option<i64>,
     previous: &mut Option<i64>,
-    control: &Control,
+    stride: &mut ControlStride<'_>,
     account: &QueryAccounting,
 ) -> Result<(), E> {
-    control.check()?;
+    stride.tick()?;
     if sample.time_ms < bounds.start_ms || sample.time_ms > bounds.end_ms {
         return Err(StorageError::Invalid("sample outside cursor bounds").into());
     }
@@ -1000,13 +1055,14 @@ fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
         }
         let mut borrow = account.hold(MemoryKind::BorrowedView, 0);
         page_bytes(page.samples, account, &mut borrow)?;
+        let mut stride = ControlStride::new(control);
         let mut action = CursorAction::Next;
         let mut consumed = None;
         let mut tail_validated = false;
         for index in 0..page.samples.len() {
             let sample = page.samples.sample(index);
             if tail_validated {
-                control.check()?;
+                stride.tick()?;
                 account.work(1);
             } else {
                 validate_walk_sample::<E>(
@@ -1015,7 +1071,7 @@ fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
                     minimum,
                     initial_floor,
                     &mut previous,
-                    control,
+                    &mut stride,
                     account,
                 )?;
             }
@@ -1050,7 +1106,7 @@ fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
                             minimum,
                             initial_floor,
                             &mut previous,
-                            control,
+                            &mut stride,
                             account,
                         )?;
                     }
@@ -1088,6 +1144,43 @@ fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn control_stride_reads_deadline_once_per_stride_and_cancellation_every_tick() {
+        let control = Control::default();
+        let mut stride = ControlStride::new(&control);
+        let mut full = 0;
+        for _ in 0..3 * CONTROL_STRIDE + 5 {
+            stride
+                .tick_with(|_| {
+                    full += 1;
+                    Ok(())
+                })
+                .unwrap();
+        }
+        assert_eq!(full, 3);
+        // A full check reporting expiry surfaces exactly at the stride boundary.
+        let mut stride = ControlStride::new(&control);
+        for _ in 1..CONTROL_STRIDE {
+            assert_eq!(stride.tick_with(|_| Err(Interrupted::Deadline)), Ok(()));
+        }
+        assert_eq!(
+            stride.tick_with(|_| Err(Interrupted::Deadline)),
+            Err(Interrupted::Deadline)
+        );
+        // Cancellation is observed on the next tick and precedes a pending deadline.
+        let mut stride = ControlStride::new(&control);
+        stride.tick_with(|_| Ok(())).unwrap();
+        control.cancellation.cancel();
+        let mut called = false;
+        assert_eq!(
+            stride.tick_with(|_| {
+                called = true;
+                Err(Interrupted::Deadline)
+            }),
+            Err(Interrupted::Cancelled)
+        );
+        assert!(!called);
+    }
     #[test]
     fn control_snapshot_samples_one_clock_and_preserves_cancellation_precedence() {
         let instant = Instant::now();
